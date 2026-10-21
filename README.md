@@ -70,3 +70,8 @@ The Laravel framework is open-sourced software licensed under the [MIT license](
 ## Dados-base do jogo
 
 A Entrega 01 disponibiliza uma liga fictícia com 10 clubes, 200 jogadores e 10 estádios. Consulte [a documentação de dados-base](docs/dados-base.md) para conhecer os modelos, carregar as seeds versionadas e executar os testes.
+
+
+## Carreiras
+
+A Entrega 02 permite cadastrar uma conta, criar carreiras independentes e retomar o progresso salvo. Consulte [a documentação de carreiras](docs/carreiras.md) para conhecer o fluxo web, o calendário inicial, as garantias de isolamento e os testes.
