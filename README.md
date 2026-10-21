@@ -65,3 +65,8 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
 # football-manager
+
+
+## Dados-base do jogo
+
+A Entrega 01 disponibiliza uma liga fictícia com 10 clubes, 200 jogadores e 10 estádios. Consulte [a documentação de dados-base](docs/dados-base.md) para conhecer os modelos, carregar as seeds versionadas e executar os testes.
