@@ -13,6 +13,11 @@ class CareerClub extends Model
 
     protected $casts = ['initial_balance_cents' => 'integer', 'balance_cents' => 'integer'];
 
+    public function lineup(): HasOne
+    {
+        return $this->hasOne(\App\Domain\Tactics\Models\CareerLineup::class);
+    }
+
     public function career(): BelongsTo
     {
         return $this->belongsTo(Career::class);

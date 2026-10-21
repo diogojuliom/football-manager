@@ -2,7 +2,7 @@
 
 O [PRD original](PRD.md) foi preservado integralmente, conforme o texto enviado (versão 2.1, atualização de 15/10/2026).
 
-A pasta [entregas](entregas/) contém um arquivo Markdown para cada uma das 13 entregas da seção 17, mantendo a numeração, o escopo e os critérios de aceite originais. As Entregas 01 e 02 foram implementadas; as demais permanecem planejadas. O PRD original foi mantido intacto.
+A pasta [entregas](entregas/) contém um arquivo Markdown para cada uma das 13 entregas da seção 17, mantendo a numeração, o escopo e os critérios de aceite originais. As Entregas 01, 02 e 03 foram implementadas; as demais permanecem planejadas. O PRD original foi mantido intacto.
 
 ## Entregas
 
@@ -11,7 +11,7 @@ A pasta [entregas](entregas/) contém um arquivo Markdown para cada uma das 13 e
 | 00 | [Fundação técnica](entregas/entrega-00-fundacao-tecnica.md) | Planejada |
 | 01 | [Dados-base e clubes](entregas/entrega-01-dados-base-e-clubes.md) | Implementada |
 | 02 | [Carreiras](entregas/entrega-02-carreiras.md) | Implementada |
-| 03 | [Elenco e táticas](entregas/entrega-03-elenco-e-taticas.md) | Planejada |
+| 03 | [Elenco e táticas](entregas/entrega-03-elenco-e-taticas.md) | Implementada |
 | 04 | [Motor de partidas](entregas/entrega-04-motor-de-partidas.md) | Planejada |
 | 05 | [IA dos clubes](entregas/entrega-05-ia-dos-clubes.md) | Planejada |
 | 06 | [Competições, calendário e progressão temporal](entregas/entrega-06-competicoes-calendario-e-progressao-temporal.md) | Planejada |

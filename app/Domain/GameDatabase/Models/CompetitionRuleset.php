@@ -11,6 +11,7 @@ class CompetitionRuleset extends Template
     protected function rules(): array
     {
         return [
+            'max_substitutes' => ['sometimes', 'integer', 'between:0,12'],
             'code' => ['required', 'string', 'max:64'],
             'format' => ['required', 'in:double_round_robin'],
             'club_count' => ['required', 'integer', 'min:2', 'multiple_of:2'],

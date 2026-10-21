@@ -75,3 +75,8 @@ A Entrega 01 disponibiliza uma liga fictícia com 10 clubes, 200 jogadores e 10 
 ## Carreiras
 
 A Entrega 02 permite cadastrar uma conta, criar carreiras independentes e retomar o progresso salvo. Consulte [a documentação de carreiras](docs/carreiras.md) para conhecer o fluxo web, o calendário inicial, as garantias de isolamento e os testes.
+
+
+## Elenco e táticas
+
+A Entrega 03 permite selecionar titulares e reservas nas quatro formações iniciais e salvar as configurações táticas de cada carreira. Consulte [a documentação de elenco e táticas](docs/elenco-e-taticas.md) para conhecer as regras, a disponibilidade dos atletas e a proteção contra alterações concorrentes.
