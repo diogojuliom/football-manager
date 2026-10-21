@@ -19,6 +19,7 @@
     <p>Seu progresso confirmado fica salvo. Os comandos para avançar o calendário serão disponibilizados em uma próxima entrega.</p>
 </section>
 <p><a href="{{ route('careers.squad.edit', $career) }}">Gerenciar elenco e táticas</a></p>
+<p><a href="{{ route('careers.friendlies.create', $career) }}">Simular amistoso</a></p>
 <h2>Elenco</h2>
 <div class="table-scroll"><table><thead><tr><th>Jogador</th><th>Posição</th><th>Idade</th><th>Condição física</th><th>Moral</th></tr></thead><tbody>
 @foreach($club->players as $player)

@@ -32,6 +32,6 @@ Escopo e critérios de aceite extraídos da seção 17 do [PRD original](../PRD.
 
 **Validação:** suíte completa com 55 testes aprovados em SQLite e MySQL 8.0.46, incluindo 20 testes desta entrega. Fluxo HTTP com sessão e CSRF, retomada e rollback/reaplicação da migração também verificados.
 
-As escolhas estão prontas para consumo pelo motor da Entrega 04; seus efeitos durante partidas ainda não são simulados. A interface permanece em Blade, conforme a implementação atual.
+As escolhas são consumidas pelo motor da Entrega 04 nos amistosos. A interface permanece em Blade, conforme a implementação atual.
 
 Consulte [Elenco e táticas: uso, regras e validação](../../docs/elenco-e-taticas.md).

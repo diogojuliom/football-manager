@@ -4,6 +4,7 @@ namespace App\Application\Squads;
 
 use App\Domain\Career\CareerState;
 use App\Domain\Career\Models\Career;
+use App\Domain\Career\Models\CareerClub;
 use App\Domain\Career\Models\CompetitionEdition;
 use App\Domain\Tactics\Tactics;
 
@@ -24,7 +25,11 @@ class SquadSheet
 
     public function forCareer(Career $career, ?string $formation = null): array
     {
-        $club = $career->controlledClub->club;
+        return $this->forClub($career, $career->controlledClub->club, $formation);
+    }
+
+    public function forClub(Career $career, CareerClub $club, ?string $formation = null): array
+    {
         $players = $club->players()->orderBy('id')->get();
         $lineup = $club->lineup()->with('selections')->first();
         $formation = array_key_exists($formation ?? '', Tactics::FORMATIONS) ? $formation : ($lineup?->formation ?? '4-4-2');

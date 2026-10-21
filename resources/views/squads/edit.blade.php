@@ -32,7 +32,7 @@
     <input type="hidden" name="revision" value="{{ $revision }}">
     <fieldset @disabled(!$editable)>
         <legend>Titulares — {{ $settings['formation'] }}</legend>
-        <p>Selecione onze atletas distintos, com um goleiro na primeira vaga. Jogadores de linha fora da posição recebem um aviso; os efeitos no desempenho serão aplicados pelo motor de partidas.</p>
+        <p>Selecione onze atletas distintos, com um goleiro na primeira vaga. Jogadores de linha fora da posição recebem um aviso; a posição ocupada influencia o desempenho no motor de partidas.</p>
         @foreach($roles as $slot => $role)
             <label for="starter-{{ $slot }}">{{ $slot + 1 }}. {{ $role }}</label>
             <select id="starter-{{ $slot }}" name="starters[{{ $slot }}]" required>
@@ -78,7 +78,7 @@
     <a href="{{ route('careers.squad.edit', $career) }}">Recarregar dados salvos</a>
 </form>
 <h2>Jogadores e atributos</h2>
-<p>Os atributos variam de 0 a 100. Lesões são consideradas até a data interna indicada, inclusive. O histórico esportivo será exibido quando houver partidas simuladas.</p>
+<p>Os atributos variam de 0 a 100. Lesões são consideradas até a data interna indicada, inclusive. As estatísticas dos amistosos ficam disponíveis nos resultados de cada simulação.</p>
 <div class="table-scroll"><table>
     <thead><tr><th>Jogador</th><th>Posição</th><th>Posições secundárias</th><th>Idade</th><th>Condição física</th><th>Moral</th><th>Disponibilidade</th>@foreach(\App\Domain\Tactics\Tactics::ATTRIBUTES as $label)<th>{{ $label }}</th>@endforeach</tr></thead>
     <tbody>@foreach($players as $player)

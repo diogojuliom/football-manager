@@ -80,3 +80,8 @@ A Entrega 02 permite cadastrar uma conta, criar carreiras independentes e retoma
 ## Elenco e táticas
 
 A Entrega 03 permite selecionar titulares e reservas nas quatro formações iniciais e salvar as configurações táticas de cada carreira. Consulte [a documentação de elenco e táticas](docs/elenco-e-taticas.md) para conhecer as regras, a disponibilidade dos atletas e a proteção contra alterações concorrentes.
+
+
+## Motor de partidas
+
+A Entrega 04 disponibiliza o motor determinístico e amistosos por carreira, com eventos, estatísticas e resultados reproduzíveis por seed. Consulte [a documentação do motor](docs/motor-de-partidas.md) para usar o fluxo, integrar snapshots e conhecer os limites desta etapa.

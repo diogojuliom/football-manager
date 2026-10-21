@@ -28,7 +28,7 @@ LW/RW representam também os jogadores abertos do meio-campo nas formações 4-4
 | `tempo` | `slow`, `normal`, `fast` |
 | `build_up` | `short`, `balanced`, `direct` |
 
-A configuração inicial sugerida é equilibrada, pressão normal, ritmo normal e construção equilibrada. Os dados persistidos ficam prontos para consumo pelo motor da Entrega 04. Esta entrega não simula partidas, não aplica efeitos estatísticos às táticas e não altera atributos por jogar fora da posição. Estatísticas esportivas e substituições durante partidas dependem das próximas entregas.
+A configuração inicial sugerida é equilibrada, pressão normal, ritmo normal e construção equilibrada. O motor da Entrega 04 já consome esses dados nos amistosos, aplicando os efeitos das táticas e da posição durante a simulação. O amistoso preserva a condição física oficial dos atletas e o calendário da carreira. Estatísticas esportivas e substituições durante partidas dependem das próximas entregas.
 
 ## Validações
 
