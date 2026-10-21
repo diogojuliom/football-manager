@@ -85,3 +85,7 @@ A Entrega 03 permite selecionar titulares e reservas nas quatro formações inic
 ## Motor de partidas
 
 A Entrega 04 disponibiliza o motor determinístico e amistosos por carreira, com eventos, estatísticas e resultados reproduzíveis por seed. Consulte [a documentação do motor](docs/motor-de-partidas.md) para usar o fluxo, integrar snapshots e conhecer os limites desta etapa.
+
+## IA dos clubes
+
+A Entrega 05 adiciona escalação e estratégias automáticas, reações durante a partida, substituições e recomendações administrativas dentro do orçamento. Também permite amistosos entre dois clubes da IA. Consulte [a documentação da IA](docs/ia-dos-clubes.md) para regras, versões e testes.

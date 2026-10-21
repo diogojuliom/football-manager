@@ -11,7 +11,8 @@ final class MatchInput
 
     public function __construct(array $data)
     {
-        if (($data['engine_version'] ?? FootballMatchEngine::VERSION) !== FootballMatchEngine::VERSION) {
+        $version = $data['engine_version'] ?? FootballMatchEngine::VERSION;
+        if (! in_array($version, [V1\Simulation::VERSION, V2\Simulation::VERSION], true)) {
             throw new InvalidArgumentException('Versão do motor não suportada.');
         }
         if (! is_string($data['seed'] ?? null) || ! preg_match('/^[a-zA-Z0-9_-]{1,64}$/D', $data['seed'])) {
@@ -26,7 +27,7 @@ final class MatchInput
             throw new InvalidArgumentException('Limite de substituições inválido.');
         }
         $ids = [];
-        $normalized = ['engine_version' => FootballMatchEngine::VERSION, 'seed' => $data['seed'], 'rules' => ['max_substitutions' => $limit]];
+        $normalized = ['engine_version' => $version, 'seed' => $data['seed'], 'rules' => ['max_substitutions' => $limit]];
         foreach (['home', 'away'] as $side) {
             $team = $data[$side] ?? null;
             if (! is_array($team) || ! is_string($team['name'] ?? null) || trim($team['name']) === '' || strlen($team['name']) > 255) {
@@ -73,6 +74,17 @@ final class MatchInput
                     }
                     $ids[$player['id']] = true;
                     $team[$unit][$slot] = array_intersect_key($player, array_flip(['id', 'name', 'primary_position', 'secondary_positions', ...array_keys(Tactics::ATTRIBUTES), 'fitness', 'morale', 'available']));
+                }
+            }
+            if ($version === V2\Simulation::VERSION) {
+                $controller = $team['controller'] ?? 'human';
+                if (! in_array($controller, ['human', 'ai'], true)
+                    || ($controller === 'ai' && ($team['ai_policy_version'] ?? \App\Domain\AI\V1\MatchDecisions::VERSION) !== \App\Domain\AI\V1\MatchDecisions::VERSION)) {
+                    throw new InvalidArgumentException('Controlador ou versão da IA inválidos.');
+                }
+                $team['controller'] = $controller;
+                if ($controller === 'ai') {
+                    $team['ai_policy_version'] = \App\Domain\AI\V1\MatchDecisions::VERSION;
                 }
             }
             $normalized[$side] = $team;

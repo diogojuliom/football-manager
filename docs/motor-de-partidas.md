@@ -6,7 +6,7 @@ Execute `php artisan migrate --seed` na conexão de desenvolvimento. Na nuvem, a
 
 Abra uma carreira, salve a escalação em **Gerenciar elenco e táticas** e escolha **Simular amistoso**. Selecione outro clube da carreira e confirme o código da simulação (seed). O resultado apresenta placar, eventos cronológicos, estatísticas das equipes e dos atletas e condição física final simulada. Os últimos dez amistosos ficam acessíveis na tela de criação; os resultados anteriores continuam disponíveis por suas URLs autorizadas.
 
-Os amistosos são simulações de treinamento: não avançam o calendário, não alteram jogadores, saldos, suspensões ou partidas da liga. A escalação humana precisa estar salva e válida; o adversário recebe uma seleção inicial equilibrada de atletas disponíveis. Estratégias reativas da IA pertencem à Entrega 05. O processamento das partidas oficiais nas datas do calendário será integrado na Entrega 06; não foi criado um atalho para jogar compromissos futuros da liga.
+Os amistosos são simulações de treinamento: não avançam o calendário, não alteram jogadores, saldos, suspensões ou partidas da liga. A escalação humana precisa estar salva e válida. Com a Entrega 05, o adversário usa seleção e estratégias adaptativas; também há um formulário **IA contra IA**, independente da escalação humana. Consulte [a documentação da IA](ia-dos-clubes.md). O processamento das partidas oficiais nas datas do calendário será integrado na Entrega 06.
 
 ## Núcleo independente
 
@@ -14,7 +14,7 @@ Os amistosos são simulações de treinamento: não avançam o calendário, não
 
 ```php
 $result = (new FootballMatchEngine)->simulate([
-    'engine_version' => '1.0.0',
+    'engine_version' => '2.0.0',
     'seed' => 'partida-001',
     'home' => $homeSnapshot,
     'away' => $awaySnapshot,
@@ -33,9 +33,9 @@ A primeira vaga exige goleiro e as demais exigem jogadores de linha. O adaptador
 
 ## Versão e reprodução
 
-A primeira versão está em `Engine/V1/Simulation.php`. A mesma entrada normalizada, seed e versão produz o mesmo resultado. `SeededRandom` gera uma sequência local por SHA-256 de seed e contador, sem afetar outros sorteios do processo. A seed aceita de 1 a 64 letras ASCII, números, hífens ou sublinhados.
+A primeira versão está em `Engine/V1/Simulation.php` e permanece suportada explicitamente como `1.0.0`. A versão atual é `2.0.0`, em `Engine/V2/Simulation.php`, com as decisões adaptativas da Entrega 05. Em V2, cada equipe informa `controller=human|ai` (padrão `human`), e a IA usa `ai_policy_version=1.0.0`. A mesma entrada normalizada, seed e versão produz o mesmo resultado. `SeededRandom` gera uma sequência local por SHA-256 de seed e contador, sem afetar outros sorteios do processo. A seed aceita de 1 a 64 letras ASCII, números, hífens ou sublinhados.
 
-Uma fixture de referência possui hash de resultado fixo em teste, protegendo contra mudanças silenciosas na versão publicada. Alterações futuras nas regras/coeficientes exigem uma versão nova e manutenção da implementação anterior para reproduzir seus snapshots; não editar a V1 para rebalancear partidas antigas. Versões desconhecidas são rejeitadas.
+Cada versão possui uma fixture de referência com hash de resultado fixo em teste, protegendo contra mudanças silenciosas na versão publicada. Alterações futuras nas regras/coeficientes exigem uma versão nova e manutenção da implementação anterior e das políticas de IA para reproduzir seus snapshots. Versões desconhecidas são rejeitadas.
 
 `ReplayHash` ordena recursivamente as chaves associativas, preservando a ordem dos eventos/jogadores e os tipos numéricos. A persistência preserva frações zero no JSON. Isso permite conferir o replay mesmo quando MySQL reorganiza as chaves dos objetos JSON:
 
@@ -54,7 +54,7 @@ $valid = ReplayHash::of($replayed) === $simulation->result_checksum;
 - Faltas podem gerar amarelos, segundo amarelo ou expulsão direta. Expulsos não voltam a atuar; a redução de atletas afeta as forças da equipe.
 - Abaixo de sete jogadores, a simulação termina com `status=abandoned` e placar até a interrupção, sem inventar um resultado administrativo.
 - Condição física diminui conforme minutos jogados, resistência, ritmo, pressão e função. Reservas não utilizadas não sofrem desgaste.
-- Substituições automáticas priorizam jogadores de linha mais desgastados e reservas compatíveis com a função. O padrão é até três mudanças nas janelas 60/70/80; a entrada pode definir de zero a cinco, usando 55/60/65/70/80 quando o limite supera três. Não há reentrada de substituídos.
+- Na V1 e para equipes humanas na V2, substituições automáticas priorizam jogadores de linha mais desgastados e reservas compatíveis com a função. O padrão é até três mudanças nas janelas 60/70/80; a entrada pode definir de zero a cinco, usando 55/60/65/70/80 quando o limite supera três. Não há reentrada de substituídos. Na V2, a IA considera desgaste, cartões, placar e qualidade, respeitando o limite de trocas e intervalo mínimo de dez minutos.
 
 As regras são uma base funcional testada, sujeita ao balanceamento da Entrega 12. Os testes de distribuição não demonstram equilíbrio econômico/esportivo final.
 
@@ -82,7 +82,7 @@ As tabelas oficiais `matches` continuam como calendário da liga. Aplicação de
 DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan test
 ```
 
-A suíte completa passou com **74 testes em SQLite**, incluindo 9 testes puros do motor e 10 testes novos dos amistosos. Os **64 testes funcionais** também passaram em MySQL 8.0.46, incluindo o replay após ida e volta pelo JSON do banco.
+A suíte completa, incluindo a Entrega 05, passou com **92 testes em SQLite**. Os **72 testes funcionais** também passaram em MySQL 8.0.46, incluindo o replay V1/V2 após ida e volta pelo JSON do banco. A Entrega 04 introduziu 9 testes puros do motor e 10 testes de amistosos; a Entrega 05 acrescentou 18 testes de IA e integração.
 
 Os testes do motor incluem 100 seeds com reconciliação detalhada de eventos/estatísticas e **2.000 partidas sintéticas**: 1.000 entre equipes equivalentes, 250 com mandante muito superior, 250 com visitante muito superior, 250 com esforço alto e 250 com mandante exausto. Verificam diversidade de placares, empates, jogos sem gols, jogos com cinco ou mais gols, vantagem técnica, desgaste e limites estatísticos. Também há cenários com atributos extremos, nenhuma reserva, limites de substituição, mando/torcida, entradas inválidas, referência de replay e abandono por expulsões.
 

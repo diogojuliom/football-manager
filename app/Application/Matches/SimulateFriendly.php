@@ -22,12 +22,17 @@ class SimulateFriendly
     public function execute(User $user, Career $career, array $input): MatchSimulation
     {
         Gate::forUser($user)->authorize('manageSquad', $career);
+        $input['mode'] ??= 'user_vs_ai';
         $data = Validator::make($input, [
+            'mode' => ['required', 'in:user_vs_ai,ai_vs_ai'],
+            'home_club_id' => ['exclude_unless:mode,ai_vs_ai', 'required', 'integer'],
             'away_club_id' => ['required', 'integer'],
             'seed' => ['required', 'string', 'regex:/^[a-zA-Z0-9_-]{1,64}$/D'],
             'request_id' => ['required', 'uuid'],
         ])->validate();
-        $requestHash = ReplayHash::of([(int) $data['away_club_id'], $data['seed']]);
+        $requestHash = $data['mode'] === 'user_vs_ai'
+            ? ReplayHash::of([(int) $data['away_club_id'], $data['seed']])
+            : ReplayHash::of(['ai_vs_ai', (int) $data['home_club_id'], (int) $data['away_club_id'], $data['seed']]);
 
         return DB::transaction(function () use ($career, $user, $data, $requestHash): MatchSimulation {
             $career = Career::whereKey($career->id)->lockForUpdate()->firstOrFail();
@@ -43,16 +48,21 @@ class SimulateFriendly
             if (! $this->sheets->editable($career)) {
                 throw ValidationException::withMessages(['match' => 'Aguarde a conclusão da operação atual da carreira.']);
             }
-            $home = $career->controlledClub->club;
+            $aiOnly = $data['mode'] === 'ai_vs_ai';
+            $home = $aiOnly ? $career->clubs()->whereKey($data['home_club_id'])->first() : $career->controlledClub->club;
+            $aiIds = \App\Domain\Career\Models\CareerClubController::where('career_id', $career->id)->where('type', 'ai')->pluck('career_club_id')->all();
+            if (! $home || ($aiOnly && ! in_array($home->id, $aiIds, true))) {
+                throw ValidationException::withMessages(['home_club_id' => 'Selecione um mandante controlado pela IA nesta carreira.']);
+            }
             $away = $career->clubs()->whereKey($data['away_club_id'])->where('id', '!=', $home->id)->first();
-            if (! $away) {
+            if (! $away || ! in_array($away->id, $aiIds, true)) {
                 throw ValidationException::withMessages(['away_club_id' => 'Selecione outro clube desta carreira.']);
             }
             try {
                 $snapshot = (new MatchInput([
                     'seed' => $data['seed'], 'engine_version' => FootballMatchEngine::VERSION,
-                    'home' => $this->snapshots->make($career, $home, true),
-                    'away' => $this->snapshots->make($career, $away, false),
+                    'home' => $this->snapshots->make($career, $home, ! $aiOnly, $away, true),
+                    'away' => $this->snapshots->make($career, $away, false, $home, false),
                     // No invented attendance or gate receipts before the attendance/finance deliveries.
                     'home_context' => ['neutral' => false],
                 ]))->data;

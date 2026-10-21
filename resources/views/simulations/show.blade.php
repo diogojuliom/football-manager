@@ -6,7 +6,8 @@
     foreach (['home', 'away'] as $side) {
         foreach ($result[$side]['players'] as $player) { $names[$player['player_id']] = $player['name']; }
     }
-    $labels = ['kickoff' => 'Início da partida', 'possession' => 'Posse de bola', 'build_up' => 'Construção de jogada', 'opportunity' => 'Oportunidade', 'shot' => 'Finalização', 'save' => 'Defesa do goleiro', 'goal' => 'Gol', 'assist' => 'Assistência', 'foul' => 'Falta', 'yellow_card' => 'Cartão amarelo', 'red_card' => 'Expulsão', 'substitution' => 'Substituição', 'fatigue' => 'Desgaste físico', 'half_time' => 'Intervalo', 'full_time' => 'Fim da partida', 'abandoned' => 'Partida interrompida'];
+    $reasons = ['chasing_goal' => 'Buscar empate ou virada', 'protecting_lead' => 'Proteger a vantagem', 'numerical_disadvantage' => 'Reorganizar após expulsão', 'numerical_advantage' => 'Explorar vantagem numérica', 'conserve_energy' => 'Poupar energia', 'fatigue' => 'Desgaste físico', 'booking' => 'Jogador amarelado', 'refresh' => 'Renovar a equipe'];
+    $labels = ['kickoff' => 'Início da partida', 'possession' => 'Posse de bola', 'build_up' => 'Construção de jogada', 'opportunity' => 'Oportunidade', 'shot' => 'Finalização', 'save' => 'Defesa do goleiro', 'goal' => 'Gol', 'assist' => 'Assistência', 'foul' => 'Falta', 'yellow_card' => 'Cartão amarelo', 'red_card' => 'Expulsão', 'substitution' => 'Substituição', 'fatigue' => 'Desgaste físico', 'half_time' => 'Intervalo', 'full_time' => 'Fim da partida', 'abandoned' => 'Partida interrompida', 'tactical_change' => 'Ajuste tático'];
 @endphp
 <p><a href="{{ route('careers.friendlies.create', $career) }}">Voltar aos amistosos</a></p>
 <h1>{{ $result['home']['name'] }} {{ $result['home']['stats']['goals'] }} × {{ $result['away']['stats']['goals'] }} {{ $result['away']['name'] }}</h1>
@@ -23,9 +24,11 @@
 <h2>Eventos destacados</h2>
 <ol>
 @foreach($result['events'] as $event)
-    @if(in_array($event['type'], ['goal', 'assist', 'yellow_card', 'red_card', 'substitution', 'abandoned'], true))
+    @if(in_array($event['type'], ['goal', 'assist', 'yellow_card', 'red_card', 'substitution', 'abandoned', 'tactical_change'], true))
     <li>{{ $event['minute'] }}' — {{ $labels[$event['type']] }}: {{ $names[$event['player_id']] ?? '' }}
         @if($event['type'] === 'substitution') no lugar de {{ $names[$event['data']['out_player_id']] }} @endif
+        @if(isset($event['data']['reason']) && isset($reasons[$event['data']['reason']])) — {{ $reasons[$event['data']['reason']] }} @endif
+        @if($event['type'] === 'tactical_change') ({{ $result[$event['side']]['name'] }}) @endif
         @if($event['type'] === 'red_card' && $event['data']['reason'] === 'second_yellow') (segundo amarelo) @endif
     </li>
     @endif
@@ -38,6 +41,24 @@
 <tr><td>{{ $player['name'] }}</td>@foreach(['minutes', 'goals', 'assists', 'shots', 'shots_on_target', 'xg', 'saves', 'yellow_cards', 'red_cards', 'initial_fitness', 'final_fitness'] as $key)<td>{{ $player[$key] }}</td>@endforeach</tr>
 @endforeach
 </tbody></table></div>
+@endforeach
+@foreach(['home', 'away'] as $side)
+    @if(($result[$side]['controller'] ?? 'human') === 'ai')
+    <section class="card">
+        <h2>{{ $result[$side]['name'] }} — decisões da IA</h2>
+        <p>Formação: {{ $simulation->input[$side]['tactics']['formation'] }}.</p>
+        @foreach(\App\Domain\Tactics\Tactics::OPTIONS as $field => $choices)
+        <p>{{ \App\Domain\Tactics\Tactics::LABELS[$field] }}: {{ $choices[$simulation->input[$side]['tactics'][$field]] }} → {{ $choices[$result[$side]['final_tactics'][$field]] }}.</p>
+        @endforeach
+        @if(isset($simulation->input[$side]['administration_plan']))
+            @php($plan = $simulation->input[$side]['administration_plan'])
+            <h3>Recomendações administrativas</h3>
+            <p>Ingresso sugerido: R$ {{ number_format($plan['ticket_price_cents'] / 100, 2, ',', '.') }}. Estimativa inicial de procura: {{ $plan['estimated_attendance'] }} torcedores.</p>
+            <p>Reserva operacional: R$ {{ number_format($plan['operating_reserve_cents'] / 100, 2, ',', '.') }}. Limite para investimentos: R$ {{ number_format($plan['investment_budget_cents'] / 100, 2, ',', '.') }}.</p>
+            <p>São recomendações: o amistoso não cobra ingressos, debita valores nem inicia obras.</p>
+        @endif
+    </section>
+    @endif
 @endforeach
 <details><summary>Todas as jogadas</summary>
 <div class="table-scroll"><table><thead><tr><th>Ordem</th><th>Minuto</th><th>Evento</th><th>Equipe</th><th>Jogador</th></tr></thead><tbody>

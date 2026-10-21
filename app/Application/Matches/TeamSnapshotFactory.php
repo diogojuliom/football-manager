@@ -10,17 +10,24 @@ use Illuminate\Validation\ValidationException;
 
 class TeamSnapshotFactory
 {
-    public function __construct(private SquadSheet $sheets) {}
+    public function __construct(private SquadSheet $sheets, private \App\Application\AI\ClubSquadSnapshot $ai) {}
 
-    public function make(Career $career, CareerClub $club, bool $requireSaved): array
+    public function make(Career $career, CareerClub $club, bool $requireSaved, ?CareerClub $opponent = null, bool $home = false): array
     {
+        if (! $requireSaved) {
+            if ($opponent === null) {
+                throw ValidationException::withMessages(['lineup' => 'Informe o adversário para preparar a IA.']);
+            }
+
+            return $this->ai->make($career, $club, $opponent, $home);
+        }
         $sheet = $this->sheets->forClub($career, $club);
         if ($requireSaved && ! $sheet['lineup']) {
             throw ValidationException::withMessages(['lineup' => 'Salve a escalação e as táticas do seu clube antes de iniciar o amistoso.']);
         }
         $settings = $sheet['settings'];
         $players = $sheet['players']->keyBy('id');
-        $team = ['name' => $club->name, 'tactics' => array_intersect_key($settings, array_flip(['formation', ...array_keys(Tactics::OPTIONS)]))];
+        $team = ['name' => $club->name, 'controller' => 'human', 'tactics' => array_intersect_key($settings, array_flip(['formation', ...array_keys(Tactics::OPTIONS)]))];
         if (count($settings['substitutes']) > $sheet['limit']) {
             throw ValidationException::withMessages(['lineup' => 'A escalação salva excede o limite atual de reservas.']);
         }

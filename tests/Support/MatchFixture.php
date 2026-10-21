@@ -8,7 +8,7 @@ class MatchFixture
 {
     public static function make(string $seed = 'sample', int $homeQuality = 65, int $awayQuality = 65): array
     {
-        $input = ['seed' => $seed, 'home_context' => ['neutral' => true]];
+        $input = ['engine_version' => '1.0.0', 'seed' => $seed, 'home_context' => ['neutral' => true]];
         foreach (['home' => $homeQuality, 'away' => $awayQuality] as $side => $quality) {
             $players = [];
             foreach ([...Tactics::FORMATIONS['4-4-2'], 'GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'ST'] as $index => $position) {
