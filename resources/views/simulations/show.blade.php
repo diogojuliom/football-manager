@@ -29,7 +29,14 @@
 @php($crowd = $result['attendance'] ?? null)
 <p>{{ $official ? $attendance->stadium_name : $simulation->attendance_plan['stadium_name'] }} · Público: <strong>{{ number_format($crowd['present'], 0, ',', '.') }}</strong> / {{ number_format($crowd['capacity'], 0, ',', '.') }} ({{ number_format($crowd['occupancy'] * 100, 1, ',', '.') }}%).</p>
 <p>Previsão: {{ number_format($official ? $attendance->forecast : $simulation->attendance_plan['forecast'], 0, ',', '.') }} · Importância: {{ $official ? $attendance->importance : $simulation->attendance_plan['importance'] }}/100.</p>
-<p>Preço-base registrado: R$ {{ number_format(($official ? $attendance->ticket_price_cents : $simulation->attendance_plan['input']['price_cents']) / 100, 2, ',', '.') }}. Nenhuma receita é lançada no caixa nesta entrega.</p>
+<p>Preço registrado: R$ {{ number_format(($official ? $attendance->ticket_price_cents : $simulation->attendance_plan['input']['price_cents']) / 100, 2, ',', '.') }}.</p>
+@if($official && $finances->has('ticket_revenue'))
+<p>Bilheteria: R$ {{ number_format($finances['ticket_revenue']->amount_cents / 100, 2, ',', '.') }} · Despesa operacional: R$ {{ number_format(-$finances['match_operating_cost']->amount_cents / 100, 2, ',', '.') }} · Resultado líquido: R$ {{ number_format(($finances['ticket_revenue']->amount_cents + $finances['match_operating_cost']->amount_cents) / 100, 2, ',', '.') }}.</p>
+@elseif($official)
+<p>Esta partida anterior à implementação financeira não possui lançamentos retroativos.</p>
+@else
+<p>Amistosos não geram lançamentos financeiros oficiais.</p>
+@endif
 @else
 <p>Público não registrado para esta partida anterior à Entrega 07.</p>
 @endif
@@ -67,7 +74,7 @@
             <h3>Recomendações administrativas</h3>
             <p>Ingresso sugerido: R$ {{ number_format($plan['ticket_price_cents'] / 100, 2, ',', '.') }}. Estimativa inicial de procura: {{ $plan['estimated_attendance'] }} torcedores.</p>
             <p>Reserva operacional: R$ {{ number_format($plan['operating_reserve_cents'] / 100, 2, ',', '.') }}. Limite para investimentos: R$ {{ number_format($plan['investment_budget_cents'] / 100, 2, ',', '.') }}.</p>
-            <p>{{ $official ? 'São recomendações: cobranças e execução de obras serão integradas nas entregas de finanças e infraestrutura.' : 'São recomendações: o amistoso não cobra ingressos, debita valores nem inicia obras.' }}</p>
+            <p>{{ $official ? 'A precificação efetiva da IA consta no registro de público; obras ainda não são executadas.' : 'São recomendações: o amistoso não cobra ingressos, debita valores nem inicia obras.' }}</p>
         @endif
     </section>
     @endif

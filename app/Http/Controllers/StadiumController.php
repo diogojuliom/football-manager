@@ -6,6 +6,7 @@ use App\Application\Attendance\MatchAttendanceService;
 use App\Domain\Attendance\Models\MatchAttendance;
 use App\Domain\Career\Models\Career;
 use App\Domain\Career\Models\CompetitionEdition;
+use App\Domain\Finance\Models\CareerFinancialTransaction;
 use App\Domain\Football\Models\MatchSimulation;
 
 class StadiumController extends Controller
@@ -26,7 +27,12 @@ class StadiumController extends Controller
         $forecast = $nextHome ? $attendance->forecast($career, $club, $nextHome->awayClub, $nextHome) : null;
         $friendlies = MatchSimulation::where('career_id', $career->id)->where('home_club_id', $club->id)
             ->whereNotNull('attendance_plan')->latest('id')->limit(10)->get();
+        $revenue = CareerFinancialTransaction::where('career_id', $career->id)->where('career_club_id', $club->id)
+            ->where('kind', 'ticket_revenue')->sum('amount_cents');
+        $receipts = CareerFinancialTransaction::where('career_id', $career->id)->where('career_club_id', $club->id)
+            ->where('kind', 'ticket_revenue')->whereIn('match_id', $history->getCollection()->pluck('match_id'))
+            ->pluck('amount_cents', 'match_id');
 
-        return view('careers.stadium', compact('career', 'club', 'history', 'averages', 'nextHome', 'forecast', 'friendlies'));
+        return view('careers.stadium', compact('career', 'club', 'history', 'averages', 'nextHome', 'forecast', 'friendlies', 'revenue', 'receipts'));
     }
 }

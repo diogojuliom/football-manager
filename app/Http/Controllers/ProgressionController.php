@@ -9,6 +9,7 @@ use App\Domain\Career\CareerState;
 use App\Domain\Career\Models\Career;
 use App\Domain\Career\Models\CareerMatch;
 use App\Domain\Career\Models\CareerOperation;
+use App\Domain\Finance\Models\CareerFinancialTransaction;
 use App\Domain\Football\Models\OfficialMatchResult;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -36,7 +37,7 @@ class ProgressionController extends Controller
         abort_unless($career->state === CareerState::PreMatch && $calendar->nextMatch($career)?->id === $match->id
             && $match->scheduled_on->eq($career->current_date), 409, 'A partida não está no pré-jogo da data atual.');
 
-        $match->load(['homeClub', 'awayClub']);
+        $match->load(['homeClub', 'awayClub', 'ticketPolicy']);
 
         return view('competitions.pre-match', ['career' => $career, 'match' => $match,
             'forecast' => $attendance->forecast($career, $match->homeClub, $match->awayClub, $match),
@@ -48,8 +49,11 @@ class ProgressionController extends Controller
         $this->authorize('view', $career);
         abort_unless($result->career_id === $career->id, 404);
 
+        $finances = CareerFinancialTransaction::where('career_id', $career->id)->where('match_id', $result->match_id)
+            ->get()->keyBy('kind');
+
         return view('simulations.show', ['career' => $career, 'simulation' => $result, 'result' => $result->result,
-            'attendance' => $result->attendance, 'official' => true]);
+            'attendance' => $result->attendance, 'finances' => $finances, 'official' => true]);
     }
 
     private function redirect(Career $career, CareerOperation $operation)

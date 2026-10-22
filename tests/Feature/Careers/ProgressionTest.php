@@ -15,6 +15,7 @@ use App\Domain\Career\Models\Career;
 use App\Domain\Career\Models\CareerEvent;
 use App\Domain\Career\Models\CareerOperation;
 use App\Domain\Career\Models\CompetitionEdition;
+use App\Domain\Finance\Models\CareerFinancialTransaction;
 use App\Domain\Football\Engine\FootballMatchEngine;
 use App\Domain\Football\Engine\ReplayHash;
 use App\Domain\Football\Models\OfficialMatchResult;
@@ -416,7 +417,6 @@ class ProgressionTest extends TestCase
 
     public function test_a_complete_season_has_90_unique_results_champion_and_frozen_final_statistics(): void
     {
-        $balances = $this->career->clubs()->pluck('balance_cents')->all();
         for ($round = 1; $round <= 18; $round++) {
             $this->advance();
             $this->assertSame(CareerState::PreMatch, $this->career->fresh()->state);
@@ -438,6 +438,7 @@ class ProgressionTest extends TestCase
         $this->assertSame(\Carbon\CarbonImmutable::parse($this->career->matches()->max('scheduled_on'))->addDay()->toDateString(), $season->ended_on->toDateString());
         $this->assertDatabaseCount('official_match_results', 90);
         $this->assertDatabaseCount('match_attendances', 90);
+        $this->assertDatabaseCount('career_financial_transactions', 180);
         $this->assertSame(90, DB::table('match_attendances')->distinct()->count('match_id'));
         $this->assertSame(0, DB::table('match_attendances')->whereColumn('realized', '>', 'capacity')->count());
         $this->assertSame(90, OfficialMatchResult::distinct()->count('match_id'));
@@ -456,7 +457,10 @@ class ProgressionTest extends TestCase
         foreach (OfficialMatchResult::all() as $result) {
             $this->assertSame($result->result_checksum, ReplayHash::of((new FootballMatchEngine)->simulate($result->input)));
         }
-        $this->assertSame($balances, $this->career->clubs()->pluck('balance_cents')->all());
+        foreach ($this->career->clubs as $club) {
+            $total = CareerFinancialTransaction::where('career_id', $this->career->id)->where('career_club_id', $club->id)->sum('amount_cents');
+            $this->assertSame($club->initial_balance_cents + $total, $club->fresh()->balance_cents);
+        }
         $this->get(route('careers.show', $this->career))->assertOk()->assertSee('Temporada encerrada')->assertSee($table[0]['name']);
         $this->post(route('careers.progression.store', $this->career), $this->payload('ADVANCE_ONE_DAY'))->assertSessionHasErrors('progression');
         $this->assertSame(1, $this->career->seasons()->count());

@@ -30,7 +30,7 @@ Cada ajuste efetivo gera `tactical_change`, com motivo, táticas anteriores e no
 
 O planejador reserva o custo operacional de dois jogos com estádio cheio e limita o orçamento de investimentos ao saldo restante, nunca inferior a zero. Quando recebe propostas de obras, recomenda apenas uma proposta útil, de custo e prazo positivos, dentro desse orçamento e sem projeto ativo. Expansão exige ocupação estimada de pelo menos 85%; modernização exige infraestrutura inferior ao nível máximo. Saldo negativo, receita operacional estimada insuficiente ou demanda baixa impedem as propostas aplicáveis. Não concede crédito, capacidade ou recursos extras.
 
-O snapshot de cada clube da IA guarda a recomendação, e a tela mostra ingresso sugerido, procura estimada, reserva operacional e orçamento. Esta etapa não fornece propostas concretas de construção nem executa recomendações. O cálculo oficial de público e os lançamentos financeiros serão integrados nas Entregas 07/08; catálogo, custos, prazos e execução das obras, na Entrega 09. As estimativas não são público real nem receita do amistoso.
+O snapshot de cada clube da IA guarda a recomendação, e a tela mostra ingresso sugerido, procura estimada, reserva operacional e orçamento. Esta etapa não fornece propostas concretas de construção nem executa recomendações. As Entregas 07/08 passaram a calcular público oficial, escolher o preço efetivo da IA com o modelo de demanda e lançar bilheteria e despesas; consulte [ingressos e finanças](ingressos-e-financas.md). Catálogo, custos, prazos e execução das obras pertencem à Entrega 09. As estimativas do planejador continuam distintas do público e da receita efetivos; amistosos não geram lançamentos.
 
 ## Integração, persistência e compatibilidade
 

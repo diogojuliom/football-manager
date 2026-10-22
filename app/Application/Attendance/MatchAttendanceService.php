@@ -9,6 +9,7 @@ use App\Domain\Career\Models\Career;
 use App\Domain\Career\Models\CareerClub;
 use App\Domain\Career\Models\CareerMatch;
 use App\Domain\Career\Models\CompetitionEdition;
+use App\Domain\Finance\Models\MatchTicketPolicy;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 
@@ -29,6 +30,7 @@ class MatchAttendanceService
             || $stadium->available_capacity > $stadium->capacity) {
             throw new LogicException('Estádio ou torcida sem dados válidos.');
         }
+        $specificPrice = $match ? MatchTicketPolicy::where('match_id', $match->id)->value('price_cents') : null;
 
         $ranking = [];
         $leaderPoints = 0;
@@ -58,7 +60,9 @@ class MatchAttendanceService
             'loyalty' => (int) $home->support->loyalty,
             'engagement' => (int) $home->support->engagement,
             'infrastructure_level' => (int) $stadium->infrastructure_level,
-            'price_cents' => (int) $home->default_ticket_price_cents,
+            'price_cents' => $specificPrice === null ? (int) $home->default_ticket_price_cents : (int) $specificPrice,
+            'fixed_cost_cents' => (int) $stadium->fixed_operating_cost_cents,
+            'variable_cost_cents' => (int) $stadium->variable_cost_per_supporter_cents,
             'opponent_supporters' => (int) $away->support->potential_supporters,
             'recent_form' => $match ? $this->recentForm($career, $home, $match) : 0,
             'away_recent_form' => $match ? $this->recentForm($career, $away, $match) : 0,
