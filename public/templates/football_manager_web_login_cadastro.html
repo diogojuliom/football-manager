@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Football Manager Web - Login & Cadastro</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#ecfdf5',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            900: '#064e3b',
+                            950: '#022c22'
+                        },
+                        soccer: {
+                            dark: '#090d16',
+                            card: '#111827',
+                            border: '#1f293d',
+                            accent: '#22c55e'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #090d16;
+            color: #f3f4f6;
+        }
+        /* Tactical Field Pattern background */
+        .tactical-grid {
+            background-image: 
+                linear-gradient(to right, rgba(34, 197, 94, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(34, 197, 94, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .pitch-lines {
+            background: radial-gradient(circle at center, rgba(16, 185, 129, 0.15) 0%, rgba(9, 13, 22, 0.95) 70%);
+        }
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.4; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.03); }
+        }
+        .animate-glow {
+            animation: pulseGlow 6s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="h-full overflow-x-hidden selection:bg-emerald-500 selection:text-white">
+
+    <div id="app" class="min-h-full flex flex-col justify-between relative tactical-grid">
+        
+        <!-- Top Navigation / Brand Bar -->
+        <header class="w-full py-5 px-6 md:px-12 flex items-center justify-between z-20 border-b border-slate-800/60 bg-slate-950/80 backdrop-blur-md">
+            <div class="flex items-center space-x-3 cursor-pointer" @click="currentScreen = 'login'">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center shadow-lg shadow-emerald-900/30">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9"></circle>
+                        <path d="M12 3v18M3 12h18M17.5 7.5l-11 9M6.5 7.5l11 9"></path>
+                    </svg>
+                </div>
+                <div>
+                    <span class="text-lg font-bold tracking-tight text-white block leading-none">FOOTBALL MANAGER</span>
+                    <span class="text-xs font-semibold text-emerald-400 tracking-widest uppercase">Web Edition</span>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-4">
+                <span class="text-xs text-slate-400 hidden sm:inline">Modo Temporada 2026/27</span>
+                <button @click="toggleScreen" class="text-xs md:text-sm font-medium px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700/60 transition-all shadow-sm">
+                    {{ currentScreen === 'login' ? 'Criar Nova Conta' : 'Fazer Login' }}
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Container -->
+        <main class="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8 z-10">
+            <div class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                
+                <!-- Form Section (Always visible, responsive width) -->
+                <div class="lg:col-span-6 xl:col-span-5 flex justify-center">
+                    <div class="w-full max-w-md bg-slate-900/90 backdrop-blur-2xl border border-slate-800/80 rounded-3xl p-8 shadow-2xl shadow-black/60 relative overflow-hidden">
+                        
+                        <!-- Ambient Light Accent -->
+                        <div class="absolute -top-24 -right-24 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                        <!-- LOGIN SCREEN -->
+                        <div v-if="currentScreen === 'login'" class="transition-all duration-300">
+                            <div class="mb-8">
+                                <h1 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">Bem-vindo de volta!</h1>
+                                <p class="text-sm text-slate-400 mt-1">Gerencie seu clube, monte táticas e conquiste títulos.</p>
+                            </div>
+
+                            <!-- Success or Error Feedback Alert -->
+                            <div v-if="feedbackMessage" :class="feedbackType === 'success' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'" class="mb-6 p-4 rounded-xl border text-sm flex items-start space-x-3">
+                                <svg v-if="feedbackType === 'success'" class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"></path></svg>
+                                <svg v-else class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                                <span>{{ feedbackMessage }}</span>
+                            </div>
+
+                            <form @submit.prevent="handleLogin" class="space-y-5">
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">E-mail do Treinador</label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                                        </span>
+                                        <input v-model="loginForm.email" type="email" required placeholder="manager@footballweb.com"
+                                            class="w-full pl-11 pr-4 py-3 bg-slate-950/60 border border-slate-800 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300">Senha</label>
+                                        <a href="#" @click.prevent="triggerForgot" class="text-xs text-emerald-400 hover:text-emerald-300 transition-colors">Esqueceu sua senha?</a>
+                                    </div>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
+                                        </span>
+                                        <input v-model="loginForm.password" :type="showLoginPassword ? 'text' : 'password'" required placeholder="••••••••"
+                                            class="w-full pl-11 pr-12 py-3 bg-slate-950/60 border border-slate-800 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all">
+                                        <button type="button" @click="showLoginPassword = !showLoginPassword" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300">
+                                            <svg v-if="!showLoginPassword" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                            <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-between">
+                                    <label class="flex items-center space-x-2.5 cursor-pointer">
+                                        <input v-model="loginForm.remember" type="checkbox" class="w-4 h-4 rounded bg-slate-950 border-slate-700 text-emerald-500 focus:ring-emerald-500/20 focus:ring-offset-0">
+                                        <span class="text-xs text-slate-300 select-none">Lembrar de mim</span>
+                                    </label>
+                                </div>
+
+                                <button type="submit" :disabled="isLoading"
+                                    class="w-full py-3.5 px-4 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-semibold rounded-xl shadow-lg shadow-emerald-900/40 transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed">
+                                    <svg v-if="isLoading" class="animate-spin -ml-1 mr-3 h-5 text-white" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span>{{ isLoading ? 'Autenticando tática...' : 'Entrar no Jogo' }}</span>
+                                    <svg v-if="!isLoading" class="w-4 h-4 ml-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>
+                                </button>
+                            </form>
+
+                            <div class="mt-8 text-center border-t border-slate-800/80 pt-6">
+                                <p class="text-xs text-slate-400">
+                                    Ainda não comanda um clube? 
+                                    <a href="#" @click.prevent="currentScreen = 'register'" class="text-emerald-400 font-semibold hover:underline ml-1">Criar minha conta</a>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- REGISTER SCREEN -->
+                        <div v-else class="transition-all duration-300">
+                            <div class="mb-6">
+                                <h1 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">Criar Nova Conta</h1>
+                                <p class="text-sm text-slate-400 mt-1">Assuma o cargo de treinador e leve seu time à glória.</p>
+                            </div>
+
+                            <div v-if="feedbackMessage" :class="feedbackType === 'success' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'" class="mb-5 p-3.5 rounded-xl border text-sm flex items-start space-x-3">
+                                <span>{{ feedbackMessage }}</span>
+                            </div>
+
+                            <form @submit.prevent="handleRegister" class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">Nome do Treinador</label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                        </span>
+                                        <input v-model="registerForm.name" type="text" required placeholder="Ex: Carlos Alberto"
+                                            class="w-full pl-11 pr-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">E-mail</label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                                        </span>
+                                        <input v-model="registerForm.email" type="email" required placeholder="manager@footballweb.com"
+                                            class="w-full pl-11 pr-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">Senha</label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
+                                        </span>
+                                        <input v-model="registerForm.password" :type="showRegisterPassword ? 'text' : 'password'" required placeholder="••••••••"
+                                            class="w-full pl-11 pr-12 py-2.5 bg-slate-950/60 border border-slate-800 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all">
+                                        <button type="button" @click="showRegisterPassword = !showRegisterPassword" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300">
+                                            <svg v-if="!showRegisterPassword" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                            <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                                        </button>
+                                    </div>
+                                    <!-- Password Strength Indicators -->
+                                    <div class="mt-2 grid grid-cols-2 gap-1.5 text-[11px] text-slate-400">
+                                        <div :class="registerForm.password.length >= 8 ? 'text-emerald-400 font-medium' : ''" class="flex items-center space-x-1">
+                                            <span>✓ Mínimo 8 caracteres</span>
+                                        </div>
+                                        <div :class="/[A-Z]/.test(registerForm.password) ? 'text-emerald-400 font-medium' : ''" class="flex items-center space-x-1">
+                                            <span>✓ Letra maiúscula</span>
+                                        </div>
+                                        <div :class="/[0-9]/.test(registerForm.password) ? 'text-emerald-400 font-medium' : ''" class="flex items-center space-x-1">
+                                            <span>✓ Número</span>
+                                        </div>
+                                        <div :class="/[^A-Za-z0-9]/.test(registerForm.password) ? 'text-emerald-400 font-medium' : ''" class="flex items-center space-x-1">
+                                            <span>✓ Caractere especial</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">Confirmar Senha</label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
+                                        </span>
+                                        <input v-model="registerForm.passwordConfirmation" type="password" required placeholder="••••••••"
+                                            class="w-full pl-11 pr-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all">
+                                    </div>
+                                </div>
+
+                                <button type="submit" :disabled="isLoading"
+                                    class="w-full py-3.5 px-4 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-semibold rounded-xl shadow-lg shadow-emerald-900/40 transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed mt-2">
+                                    <svg v-if="isLoading" class="animate-spin -ml-1 mr-3 h-5 text-white" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span>{{ isLoading ? 'Cadastrando clube...' : 'Criar Conta de Treinador' }}</span>
+                                    <svg v-if="!isLoading" class="w-4 h-4 ml-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>
+                                </button>
+                            </form>
+
+                            <div class="mt-6 text-center border-t border-slate-800/80 pt-5">
+                                <p class="text-xs text-slate-400">
+                                    Já possui uma conta? 
+                                    <a href="#" @click.prevent="currentScreen = 'login'" class="text-emerald-400 font-semibold hover:underline ml-1">Fazer Login</a>
+                                </p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Immersive Desktop Visual Area (Hidden on Mobile) -->
+                <div class="hidden lg:block lg:col-span-6 xl:col-span-7">
+                    <div class="relative bg-gradient-to-br from-slate-900/90 via-slate-950 to-emerald-950/40 border border-slate-800/80 rounded-3xl p-8 xl:p-12 overflow-hidden shadow-2xl">
+                        
+                        <!-- Glowing Stadium background illustration -->
+                        <div class="absolute inset-0 pitch-lines opacity-60"></div>
+                        <div class="absolute -bottom-20 -right-20 w-96 h-96 bg-emerald-500/15 rounded-full blur-3xl animate-glow pointer-events-none"></div>
+
+                        <div class="relative z-10">
+                            <div class="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold mb-6">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                <span>Simulação Tática Avançada 2026</span>
+                            </div>
+
+                            <h2 class="text-3xl xl:text-4xl font-extrabold text-white tracking-tight leading-tight mb-4">
+                                Monte seu elenco.<br/>Domine as táticas.<br/>Conquiste a glória.
+                            </h2>
+
+                            <p class="text-slate-300 text-sm xl:text-base leading-relaxed mb-8 max-w-xl">
+                                Viva a verdadeira experiência do futebol de gerenciamento para navegadores. Negocie no mercado de transferências, ajuste formações em tempo real e leve seu clube da divisão de acesso até o topo do continente.
+                            </p>
+
+                            <!-- Feature Pills Grid -->
+                            <div class="grid grid-cols-2 gap-4 mb-8">
+                                <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-sm">
+                                    <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-3">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                                    </div>
+                                    <h3 class="text-sm font-semibold text-white mb-1">Estatísticas Detalhadas</h3>
+                                    <p class="text-xs text-slate-400">Desempenho de atletas e mapas de calor táticos.</p>
+                                </div>
+
+                                <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-sm">
+                                    <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-3">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                    </div>
+                                    <h3 class="text-sm font-semibold text-white mb-1">Mercado Ao Vivo</h3>
+                                    <p class="text-xs text-slate-400">Leilões e contratações em tempo real com outros managers.</p>
+                                </div>
+                            </div>
+
+                            <!-- Live Manager Stats Bar -->
+                            <div class="flex items-center justify-between p-4 rounded-2xl bg-slate-900/80 border border-slate-800 text-xs text-slate-300">
+                                <div class="flex items-center space-x-2">
+                                    <div class="flex -space-x-2">
+                                        <div class="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-white text-[10px] border-2 border-slate-900">CA</div>
+                                        <div class="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white text-[10px] border-2 border-slate-900">JS</div>
+                                        <div class="w-7 h-7 rounded-full bg-purple-600 flex items-center justify-center font-bold text-white text-[10px] border-2 border-slate-900">RM</div>
+                                    </div>
+                                    <span class="font-medium text-white">+48.250 Treinadores ativos</span>
+                                </div>
+                                <div class="flex items-center space-x-1 text-emerald-400 font-semibold">
+                                    <span>Servidores Online</span>
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="py-6 text-center text-xs text-slate-500 z-10 border-t border-slate-900">
+            <p>&copy; 2026 Football Manager Web. Todos os direitos reservados. Inspirado na paixão pelo futebol.</p>
+        </footer>
+
+    </div>
+
+    <!-- Vue Application Logic -->
+    <script>
+        const { createApp, ref, reactive } = Vue
+
+        createApp({
+            setup() {
+                const currentScreen = ref('login')
+                const isLoading = ref(false)
+                const feedbackMessage = ref('')
+                const feedbackType = ref('success') // 'success' or 'error'
+
+                const showLoginPassword = ref(false)
+                const showRegisterPassword = ref(false)
+
+                const loginForm = reactive({
+                    email: '',
+                    password: '',
+                    remember: false
+                })
+
+                const registerForm = reactive({
+                    name: '',
+                    email: '',
+                    password: '',
+                    passwordConfirmation: ''
+                })
+
+                const toggleScreen = () => {
+                    currentScreen.value = currentScreen.value === 'login' ? 'register' : 'login'
+                    feedbackMessage.value = ''
+                }
+
+                const triggerForgot = () => {
+                    feedbackType.value = 'success'
+                    feedbackMessage.value = 'Instruções de recuperação enviadas para o seu e-mail cadastrado.'
+                }
+
+                const handleLogin = () => {
+                    isLoading.value = true
+                    feedbackMessage.value = ''
+
+                    setTimeout(() => {
+                        isLoading.value = false
+                        feedbackType.value = 'success'
+                        feedbackMessage.value = 'Login realizado com sucesso! Redirecionando para o vestiário...'
+                    }, 1400)
+                }
+
+                const handleRegister = () => {
+                    if (registerForm.password !== registerForm.passwordConfirmation) {
+                        feedbackType.value = 'error'
+                        feedbackMessage.value = 'As senhas não coincidem. Verifique a confirmação.'
+                        return
+                    }
+
+                    isLoading.value = true
+                    feedbackMessage.value = ''
+
+                    setTimeout(() => {
+                        isLoading.value = false
+                        feedbackType.value = 'success'
+                        feedbackMessage.value = 'Clube criado com sucesso! Bem-vindo à divisão principal.'
+                    }, 1500)
+                }
+
+                return {
+                    currentScreen,
+                    isLoading,
+                    feedbackMessage,
+                    feedbackType,
+                    showLoginPassword,
+                    showRegisterPassword,
+                    loginForm,
+                    registerForm,
+                    toggleScreen,
+                    triggerForgot,
+                    handleLogin,
+                    handleRegister
+                }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>
