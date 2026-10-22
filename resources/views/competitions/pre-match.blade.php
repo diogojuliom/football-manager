@@ -11,7 +11,7 @@
 @if($decision)
 <p>Confirme primeiro o acontecimento pendente no dashboard.</p>
 @else
-<form method="post" action="{{ route('careers.progression.store', $career) }}">
+<form data-progression method="post" action="{{ route('careers.progression.store', $career) }}">
     @csrf
     <input type="hidden" name="request_id" value="{{ $requestId }}">
     <input type="hidden" name="revision" value="{{ $career->progression_revision }}">

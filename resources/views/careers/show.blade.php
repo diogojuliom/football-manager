@@ -24,10 +24,10 @@
     @endif
     @if($pendingOperation)
     <p>Uma operação já autorizada aguarda conclusão. Retome-a para recuperar o progresso com segurança.</p>
-    <form method="post" action="{{ route('careers.operations.resume', [$career, $pendingOperation]) }}">@csrf<button class="primary">Retomar operação autorizada</button></form>
+    <form data-progression method="post" action="{{ route('careers.operations.resume', [$career, $pendingOperation]) }}">@csrf<button class="primary">Retomar operação autorizada</button></form>
     @elseif($decision)
     <p>Acontecimento pendente: <strong>{{ $decision->title }}</strong> ({{ $decision->scheduled_on->format('d/m/Y') }}).</p>
-    <form method="post" action="{{ route('careers.progression.store', $career) }}">
+    <form data-progression method="post" action="{{ route('careers.progression.store', $career) }}">
         @csrf
         <input type="hidden" name="request_id" value="{{ $requestId }}">
         <input type="hidden" name="revision" value="{{ $career->progression_revision }}">
@@ -37,7 +37,7 @@
     @elseif($career->state === \App\Domain\Career\CareerState::PreMatch && $nextMatch)
     <p><a class="primary" href="{{ route('careers.matches.pre-match', [$career, $nextMatch]) }}">Jogar partida</a></p>
     @elseif($career->state !== \App\Domain\Career\CareerState::AwaitingSeason)
-    <form method="post" action="{{ route('careers.progression.store', $career) }}">
+    <form data-progression method="post" action="{{ route('careers.progression.store', $career) }}">
         @csrf
         <input type="hidden" name="request_id" value="{{ $requestId }}">
         <input type="hidden" name="revision" value="{{ $career->progression_revision }}">

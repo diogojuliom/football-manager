@@ -1,4 +1,9 @@
 /.phpunit.cache
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite-*
 /node_modules
 /public/build
 /public/hot

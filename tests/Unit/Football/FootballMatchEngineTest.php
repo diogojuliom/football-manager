@@ -24,13 +24,23 @@ class FootballMatchEngineTest extends TestCase
         $this->assertSame('finished', $result['status']);
     }
 
-    public function test_statistics_reconcile_with_events_players_and_score_over_many_seeds(): void
+    public static function engineModes(): array
+    {
+        return ['legacy' => ['1.0.0', 'human'], 'current human' => ['2.0.0', 'human'], 'current AI' => ['2.0.0', 'ai']];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('engineModes')]
+    public function test_statistics_reconcile_with_events_players_and_score_over_many_seeds(string $version, string $controller): void
     {
         $engine = new FootballMatchEngine;
         $types = [];
         $signatures = [];
         for ($seed = 0; $seed < 100; $seed++) {
-            $result = $engine->simulate(MatchFixture::make('invariants-'.$seed));
+            $input = MatchFixture::make('invariants-'.$seed);
+            $input['engine_version'] = $version;
+            $input['home']['controller'] = $input['away']['controller'] = $controller;
+            $result = $engine->simulate($input);
+            $this->assertSame($result, $engine->simulate($input));
             $this->assertEqualsWithDelta(100, $result['home']['stats']['possession'] + $result['away']['stats']['possession'], 0.000001);
             $minutes = array_column($result['events'], 'minute');
             $sorted = $minutes;

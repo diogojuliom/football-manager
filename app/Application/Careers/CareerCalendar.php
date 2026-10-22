@@ -34,7 +34,7 @@ class CareerCalendar
     public function decision(Career $career): ?CareerEvent
     {
         return CareerEvent::where('career_id', $career->id)->where('status', 'pending')->where('requires_decision', true)
-            ->whereDate('scheduled_on', '<=', $career->current_date->toDateString())->orderBy('scheduled_on')->orderBy('id')->first();
+            ->where('scheduled_on', '<', $career->current_date->addDay()->toDateString())->orderBy('scheduled_on')->orderBy('id')->first();
     }
 
     public function scheduleEnd(Career $career): void

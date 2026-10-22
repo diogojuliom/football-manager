@@ -14,9 +14,13 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [SessionController::class, 'login'])->middleware('throttle:6,1');
     Route::view('/register', 'auth.register')->name('register');
     Route::post('/register', [SessionController::class, 'register'])->middleware('throttle:6,1');
+    Route::view('/forgot-password', 'auth.forgot-password')->name('password.request');
+    Route::post('/forgot-password', [SessionController::class, 'sendResetLink'])->middleware('throttle:6,1')->name('password.email');
+    Route::get('/reset-password/{token}', [SessionController::class, 'resetForm'])->name('password.reset');
+    Route::post('/reset-password', [SessionController::class, 'resetPassword'])->middleware('throttle:6,1')->name('password.update');
 });
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'auth.session'])->group(function () {
     Route::post('/logout', [SessionController::class, 'logout'])->name('logout');
     Route::post('/careers/{career}/progression', [ProgressionController::class, 'store'])->name('careers.progression.store');
     Route::post('/careers/{career}/operations/{operation}/resume', [ProgressionController::class, 'resume'])->name('careers.operations.resume');

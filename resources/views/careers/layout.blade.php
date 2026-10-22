@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'Football Manager')</title>
+    <script src="{{ asset('js/progression.js') }}" defer></script>
     <style>
         body { font: 1rem/1.5 system-ui, sans-serif; margin: auto; padding: 1.5rem; max-width: 70rem; color: #172c24; background: #f6f8f7; }
         nav { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; border-bottom: 1px solid #bacbc2; padding-bottom: 1rem; }
@@ -31,6 +32,9 @@
     @endauth
 </nav>
 <main>
+    @if(session('status'))
+        <p role="status">{{ session('status') }}</p>
+    @endif
     @if($errors->any())
         <div class="errors" role="alert"><strong>Confira os dados informados:</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
     @endif

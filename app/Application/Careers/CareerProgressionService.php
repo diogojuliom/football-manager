@@ -141,7 +141,7 @@ class CareerProgressionService
             $played = [];
             $nextState = CareerState::AwaitingDecision;
             if ($operation->kind === self::PLAY_MATCH) {
-                foreach ($career->matches()->where('status', 'scheduled')->whereDate('scheduled_on', $career->current_date->toDateString())->orderBy('id')->get() as $match) {
+                foreach ($career->matches()->where('status', 'scheduled')->onDate($career->current_date)->orderBy('id')->get() as $match) {
                     $played[] = $this->matches->execute($career, $match, $operation)->match_id;
                 }
             } elseif ($operation->kind === self::ACKNOWLEDGE_EVENT) {
@@ -182,10 +182,10 @@ class CareerProgressionService
         if ($humanMatch && $humanMatch->scheduled_on->lte($career->current_date)) {
             return CareerState::PreMatch;
         }
-        foreach ($career->matches()->where('status', 'scheduled')->whereDate('scheduled_on', $career->current_date->toDateString())->orderBy('id')->get() as $match) {
+        foreach ($career->matches()->where('status', 'scheduled')->onDate($career->current_date)->orderBy('id')->get() as $match) {
             $played[] = $this->matches->execute($career, $match, $operation)->match_id;
         }
-        foreach (CareerEvent::where('career_id', $career->id)->where('status', 'pending')->whereDate('scheduled_on', '<=', $career->current_date->toDateString())
+        foreach (CareerEvent::where('career_id', $career->id)->where('status', 'pending')->where('scheduled_on', '<', $career->current_date->addDay()->toDateString())
             ->orderBy('scheduled_on')->orderByRaw("CASE WHEN kind = 'season_end' THEN 1 ELSE 0 END")->orderBy('id')->get() as $event) {
             if ($event->kind === 'season_end') {
                 $this->finishSeason($career, $event);
@@ -209,8 +209,10 @@ class CareerProgressionService
             'processed_on' => $career->current_date->toDateString(), 'created_at' => now(), 'updated_at' => now(),
         ]);
         $amount = max(0, min(100, (int) config('careers.daily_fitness_recovery', 8)));
-        foreach ($career->players()->where('fitness', '<', 100)->where(fn ($q) => $q->whereNull('injured_until')->orWhereDate('injured_until', '<', $career->current_date->toDateString()))->get() as $player) {
-            $player->update(['fitness' => min(100, $player->fitness + $amount)]);
+        if ($amount > 0) {
+            $career->players()->where('fitness', '<', 100)
+                ->where(fn ($q) => $q->whereNull('injured_until')->orWhere('injured_until', '<', $career->current_date->toDateString()))
+                ->update(['fitness' => DB::raw("CASE WHEN fitness + {$amount} > 100 THEN 100 ELSE fitness + {$amount} END")]);
         }
     }
 

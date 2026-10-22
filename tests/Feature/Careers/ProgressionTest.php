@@ -373,6 +373,7 @@ class ProgressionTest extends TestCase
         $other = $this->newCareer();
         $operation = app(CareerProgressionService::class)->authorizeOperation($this->owner, $this->career, $payload);
         $this->post(route('careers.operations.resume', [$other, $operation]))->assertNotFound();
+        $this->post('/logout');
         $this->actingAs(User::factory()->create());
         $this->post(route('careers.progression.store', $this->career), $payload)->assertForbidden();
         $this->post(route('careers.operations.resume', [$this->career, $operation]))->assertForbidden();
@@ -457,6 +458,7 @@ class ProgressionTest extends TestCase
         $this->advance('PLAY_MATCH', ['match_id' => $this->nextMatch()->id]);
         $result = OfficialMatchResult::firstOrFail();
         $this->get(route('careers.results.show', [$this->newCareer(), $result]))->assertNotFound();
+        $this->post('/logout');
         $this->actingAs(User::factory()->create())->get(route('careers.results.show', [$this->career, $result]))->assertForbidden();
         $this->expectException(LogicException::class);
         $result->update(['home_goals' => 999]);

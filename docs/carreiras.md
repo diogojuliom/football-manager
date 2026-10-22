@@ -14,7 +14,7 @@ Na máquina de nuvem preparada neste projeto, ative primeiro `source /workspace/
 
 A página inicial permite criar uma conta ou entrar. Em **Minhas carreiras**, escolha **Nova carreira**, informe o nome da carreira, o treinador e o clube. Após criar, a página apresenta a data interna, o estado, o saldo, o estádio, o elenco e o calendário. A listagem permite retomar qualquer carreira do usuário. A leitura e o login não avançam o calendário.
 
-As telas desta entrega usam Blade e sessões, compatíveis com o Laravel atual. Cadastro, login e logout mínimos foram acrescentados para viabilizar esse fluxo. Recuperação de senha, a migração da stack para Vue/Inertia e a interface completa do MVP continuam nas entregas de fundação/interface. Não há escolha de dificuldade nesta etapa, pois ainda não existem modificadores de dificuldade implementados.
+As telas desta entrega usam Blade e sessões, compatíveis com o Laravel atual. Cadastro, login, logout e recuperação de senha estão disponíveis. Configure `APP_URL` com a origem pública correta e o transporte de e-mail no ambiente para enviar links de recuperação; os testes usam notificações simuladas. Os tokens expiram em 60 minutos e só podem ser utilizados uma vez; alterar a senha invalida as sessões anteriores quando voltam a acessar uma rota autenticada. A migração para Vue/Inertia e a interface completa do MVP continuam nas entregas de fundação/interface. Não há escolha de dificuldade nesta etapa, pois ainda não existem modificadores de dificuldade implementados.
 
 ## Universo particular
 

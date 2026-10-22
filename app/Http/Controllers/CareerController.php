@@ -43,7 +43,7 @@ class CareerController extends Controller
     {
         $this->authorize('view', $career);
         $career->load(['version', 'controlledClub.club.stadium', 'controlledClub.club.support', 'controlledClub.club.players', 'seasons']);
-        $matches = $career->matches()->with(['homeClub', 'awayClub', 'result'])->orderBy('scheduled_on')->orderBy('id')->paginate(10);
+        $matches = $career->matches()->with(['homeClub', 'awayClub', 'result:id,match_id,home_goals,away_goals'])->orderBy('scheduled_on')->orderBy('id')->paginate(10);
         $season = $calendar->season($career);
         $edition = CompetitionEdition::where('career_id', $career->id)->where('career_season_id', $season->id)->sole();
         $standings = $season->status === 'completed' ? $season->summary[0]['standings'] : $tables->standings($edition);
