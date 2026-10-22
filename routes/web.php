@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CareerController;
 use App\Http\Controllers\FriendlyController;
+use App\Http\Controllers\ProgressionController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\SquadController;
 use Illuminate\Support\Facades\Route;
@@ -17,6 +18,10 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [SessionController::class, 'logout'])->name('logout');
+    Route::post('/careers/{career}/progression', [ProgressionController::class, 'store'])->name('careers.progression.store');
+    Route::post('/careers/{career}/operations/{operation}/resume', [ProgressionController::class, 'resume'])->name('careers.operations.resume');
+    Route::get('/careers/{career}/matches/{match}/pre-match', [ProgressionController::class, 'preMatch'])->name('careers.matches.pre-match');
+    Route::get('/careers/{career}/results/{result}', [ProgressionController::class, 'result'])->name('careers.results.show');
     Route::get('/careers/{career}/squad', [SquadController::class, 'edit'])->name('careers.squad.edit');
     Route::put('/careers/{career}/squad', [SquadController::class, 'update'])->name('careers.squad.update');
     Route::get('/careers/{career}/friendlies/create', [FriendlyController::class, 'create'])->name('careers.friendlies.create');

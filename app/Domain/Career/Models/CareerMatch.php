@@ -4,6 +4,7 @@ namespace App\Domain\Career\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class CareerMatch extends Model
 {
@@ -12,6 +13,11 @@ class CareerMatch extends Model
     protected $guarded = ['id'];
 
     protected $casts = ['scheduled_on' => 'immutable_date'];
+
+    public function result(): HasOne
+    {
+        return $this->hasOne(\App\Domain\Football\Models\OfficialMatchResult::class, 'match_id');
+    }
 
     public function homeClub(): BelongsTo
     {

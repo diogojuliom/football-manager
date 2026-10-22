@@ -16,7 +16,7 @@ class Career extends Model
 
     protected $hidden = ['creation_key', 'creation_checksum'];
 
-    protected $casts = ['current_date' => 'immutable_date', 'state' => CareerState::class];
+    protected $casts = ['current_date' => 'immutable_date', 'state' => CareerState::class, 'progression_revision' => 'integer'];
 
     public function owner(): BelongsTo
     {

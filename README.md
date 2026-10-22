@@ -89,3 +89,7 @@ A Entrega 04 disponibiliza o motor determinístico e amistosos por carreira, com
 ## IA dos clubes
 
 A Entrega 05 adiciona escalação e estratégias automáticas, reações durante a partida, substituições e recomendações administrativas dentro do orçamento. Também permite amistosos entre dois clubes da IA. Consulte [a documentação da IA](docs/ia-dos-clubes.md) para regras, versões e testes.
+
+## Competições e progressão temporal
+
+A Entrega 06 permite disputar as 18 rodadas usando **Próxima partida**, com parada no pré-jogo, confirmação, resultados oficiais, classificação, artilharia e campeão. O calendário só avança por ação explícita, com proteção contra duplicações e retomada de operações interrompidas. Consulte [a documentação de competições e progressão](docs/competicoes-e-progressao.md).

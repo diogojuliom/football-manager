@@ -14,6 +14,7 @@
         th, td { text-align: left; padding: .65rem; border-bottom: 1px solid #d8e2dc; }
         .table-scroll { overflow-x: auto; } .errors { border: 2px solid #9b2525; padding: 1rem; color: #7d1d1d; }
         .card { border: 1px solid #c5d4ca; padding: 1rem; margin: 1rem 0; background: white; }
+        .primary { background: #125f40; color: white; border: 2px solid #125f40; font-weight: 700; }
     </style>
 </head>
 <body>

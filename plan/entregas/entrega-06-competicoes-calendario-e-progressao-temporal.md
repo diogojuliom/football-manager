@@ -72,19 +72,19 @@ No dia da partida, deverá apresentar a ação "Jogar partida".
 
 A entrega somente será considerada concluída quando:
 
-- [ ] A carreira possuir calendário interno persistente.
-- [ ] O usuário conseguir avançar um dia.
-- [ ] O usuário conseguir avançar até a próxima partida.
-- [ ] O usuário conseguir avançar até o próximo acontecimento relevante.
-- [ ] Os dias intermediários forem processados cronologicamente.
-- [ ] Os jogos da IA forem processados nas datas aplicáveis.
-- [ ] A progressão parar no pré-jogo do usuário.
-- [ ] A partida exigir confirmação antes de sua execução.
-- [ ] A carreira não avançar automaticamente após a desconexão.
-- [ ] O retorno posterior ao jogo preservar o estado consistente da carreira.
-- [ ] Duas solicitações simultâneas não produzirem progressões duplicadas.
-- [ ] Uma operação interrompida puder ser recuperada com segurança.
-- [ ] Uma temporada completa puder ser disputada com essa mecânica.
+- [x] A carreira possuir calendário interno persistente.
+- [x] O usuário conseguir avançar um dia.
+- [x] O usuário conseguir avançar até a próxima partida.
+- [x] O usuário conseguir avançar até o próximo acontecimento relevante.
+- [x] Os dias intermediários forem processados cronologicamente.
+- [x] Os jogos da IA forem processados nas datas aplicáveis.
+- [x] A progressão parar no pré-jogo do usuário.
+- [x] A partida exigir confirmação antes de sua execução.
+- [x] A carreira não avançar automaticamente após a desconexão.
+- [x] O retorno posterior ao jogo preservar o estado consistente da carreira.
+- [x] Duas solicitações simultâneas não produzirem progressões duplicadas.
+- [x] Uma operação interrompida puder ser recuperada com segurança.
+- [x] Uma temporada completa puder ser disputada com essa mecânica.
 
 **Aceite final:** será possível disputar uma temporada completa utilizando a progressão até a próxima partida como principal experiência de jogo, sem progressão automática offline e ainda sem os recursos administrativos de estádio finalizados.
 
@@ -94,4 +94,18 @@ A entrega somente será considerada concluída quando:
 
 Escopo e critérios de aceite extraídos da seção 17 do [PRD original](../PRD.md). Consultar também as regras detalhadas do PRD, o plano de testes (seção 18), os critérios de aceite do MVP (seção 19), os limites de escopo (seção 20) e a definição de pronto (seção 21).
 
-**Estado:** planejada; implementação não iniciada por esta organização documental.
+**Estado:** implementada em 21/10/2026.
+
+## Implementação e evidências
+
+- Serviço de progressão com as três modalidades previstas, processamento diário, recuperação física e paradas obrigatórias.
+- Pré-jogo persistente, ajustes de escalação e táticas, confirmação explícita e resultados oficiais imutáveis, com aplicação única de desgaste e suspensões.
+- Partidas da IA nas datas agendadas, classificação e artilharia reconstruídas dos resultados oficiais, encerramento com campeão e histórico final.
+- Operações autorizadas persistentes, revisão por carreira, bloqueios, idempotência, rollback dos efeitos em falhas e retomada explícita pelo dashboard.
+- 110 testes aprovados em SQLite e 90 testes funcionais em MySQL 8.0.46. Temporada completa validada nos dois bancos e em fluxo HTTP com cookies/CSRF.
+- Concorrência real validada nos dois bancos para avanço e confirmação de partida, com chaves iguais e distintas, sem duplicar dias ou resultados.
+- Migração de carreira existente, rollback e reaplicação verificados sem alterar os universos anteriores nos cenários descartáveis.
+
+**Aceite final atendido:** uma temporada completa de 18 rodadas e 90 partidas pode ser disputada pela progressão até a próxima partida, com confirmação no pré-jogo e sem avanço offline. Recursos administrativos de estádio seguem nas Entregas 07–09; criação da temporada seguinte, na Entrega 10.
+
+Consulte [a documentação de competições e progressão](../../docs/competicoes-e-progressao.md) para o fluxo, regras, recuperação e evidências.

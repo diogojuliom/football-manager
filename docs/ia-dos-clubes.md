@@ -4,7 +4,7 @@
 
 Abra uma carreira e escolha **Simular amistoso**. O formulário habitual usa a escalação salva do seu clube contra um adversário da IA. O formulário **IA contra IA** permite escolher dois dos nove clubes adversários, sem exigir escalação humana salva. Ambos usam o motor atual `2.0.0` e registram uma partida completa, com decisões da IA e estatísticas.
 
-Os amistosos são executados somente pelo envio explícito do formulário. Não alteram data, calendário oficial, condição dos jogadores, suspensões, saldos, preços ou capacidade. Consultar o resultado não executa decisões novamente. A execução das partidas da liga durante a progressão autorizada será integrada na Entrega 06.
+Os amistosos são executados somente pelo envio explícito do formulário. Não alteram data, calendário oficial, condição dos jogadores, suspensões, saldos, preços ou capacidade. Consultar o resultado não executa decisões novamente. A Entrega 06 integrou a execução das partidas da liga durante a [progressão autorizada](competicoes-e-progressao.md).
 
 ## Escalação e estratégia
 

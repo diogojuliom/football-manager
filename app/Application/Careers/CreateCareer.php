@@ -15,7 +15,7 @@ use Illuminate\Validation\ValidationException;
 
 class CreateCareer
 {
-    public function __construct(private InitialSchedule $schedule) {}
+    public function __construct(private InitialSchedule $schedule, private CareerCalendar $calendar) {}
 
     public function execute(User $owner, array $input): Career
     {
@@ -117,6 +117,7 @@ class CreateCareer
             foreach ($this->schedule->generate($clubIds, $start->addDays(config('careers.first_match_after_days'))) as $match) {
                 $career->matches()->create($match + ['competition_edition_id' => $edition->id]);
             }
+            $this->calendar->scheduleEnd($career);
 
             return $career;
         }, 3);

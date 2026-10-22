@@ -37,9 +37,9 @@ Os dados-base e sua versão continuam referenciados para rastreabilidade. Os val
 
 A configuração `config/careers.php` estabelece a data inicial **01/01/2026**, a primeira rodada 13 dias depois e intervalos de sete dias entre rodadas. São datas do universo fictício, independentes do dia real da criação. A primeira temporada possui 18 rodadas, com cinco jogos por rodada, nove mandos e nove visitas para cada clube.
 
-O calendário inicial usa o método de rotação com turno e returno. É a agenda persistente necessária à criação do universo do RF02. Comandos de progressão, jogos da IA, classificação, simulação, encerramento esportivo e temporadas seguintes continuam nas Entregas 04–06 e 10.
+O calendário inicial usa o método de rotação com turno e returno. É a agenda persistente necessária à criação do universo do RF02. A Entrega 06 integrou comandos de progressão, jogos oficiais da IA e do usuário, classificação, artilharia e encerramento esportivo. Consulte [competições e progressão](competicoes-e-progressao.md). Temporadas seguintes pertencem à Entrega 10.
 
-`CareerState` define `awaiting_decision`, `processing`, `pre_match`, `awaiting_match` e `awaiting_season`. Uma nova carreira começa em `awaiting_decision`. Não existem cron jobs, workers ou efeitos de leitura que avancem a data. Futuras ações confirmadas deverão persistir seus resultados transacionalmente nessas entidades; não há endpoint para sobrescrever arbitrariamente o estado enviado pelo navegador.
+`CareerState` define `awaiting_decision`, `processing`, `pre_match`, `awaiting_match` e `awaiting_season`. Uma nova carreira começa em `awaiting_decision`. Não existem cron jobs, workers ou efeitos de leitura que avancem a data. Ações confirmadas persistem seus resultados transacionalmente nessas entidades; não há endpoint para sobrescrever arbitrariamente o estado enviado pelo navegador.
 
 ## Integridade, acesso e retomada
 

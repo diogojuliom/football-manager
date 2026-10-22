@@ -19,7 +19,7 @@ As chaves estrangeiras compostas impedem vínculos entre versões distintas. Có
 
 Os elencos possuem dois goleiros, quatro zagueiros, dois laterais de cada lado, dois volantes, três meias centrais, um meia ofensivo, dois pontas e dois atacantes. As siglas são `GK`, `CB`, `LB`, `RB`, `DM`, `CM`, `AM`, `LW`, `RW` e `ST`. As idades iniciais vão de 18 a 35 anos; a condição física começa em 100 e a moral em 70. Nomes e atributos são construídos por regras inteiras fixas no arquivo da versão, sem Faker, relógio real ou sorteios.
 
-Os desempates configuráveis iniciais são vitórias, saldo de gols, gols marcados e, por último, código do clube em ordem crescente para uma resolução estável. A aplicação dessa ordem à classificação será implementada na Entrega 06.
+Os desempates configuráveis iniciais são vitórias, saldo de gols, gols marcados e, por último, código do clube em ordem crescente para uma resolução estável. A Entrega 06 aplica essa ordem à classificação, usando as regras congeladas da edição e os resultados oficiais.
 
 ## Valores iniciais e unidades
 

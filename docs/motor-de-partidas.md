@@ -6,7 +6,7 @@ Execute `php artisan migrate --seed` na conexão de desenvolvimento. Na nuvem, a
 
 Abra uma carreira, salve a escalação em **Gerenciar elenco e táticas** e escolha **Simular amistoso**. Selecione outro clube da carreira e confirme o código da simulação (seed). O resultado apresenta placar, eventos cronológicos, estatísticas das equipes e dos atletas e condição física final simulada. Os últimos dez amistosos ficam acessíveis na tela de criação; os resultados anteriores continuam disponíveis por suas URLs autorizadas.
 
-Os amistosos são simulações de treinamento: não avançam o calendário, não alteram jogadores, saldos, suspensões ou partidas da liga. A escalação humana precisa estar salva e válida. Com a Entrega 05, o adversário usa seleção e estratégias adaptativas; também há um formulário **IA contra IA**, independente da escalação humana. Consulte [a documentação da IA](ia-dos-clubes.md). O processamento das partidas oficiais nas datas do calendário será integrado na Entrega 06.
+Os amistosos são simulações de treinamento: não avançam o calendário, não alteram jogadores, saldos, suspensões ou partidas da liga. A escalação humana precisa estar salva e válida. Com a Entrega 05, o adversário usa seleção e estratégias adaptativas; também há um formulário **IA contra IA**, independente da escalação humana. Consulte [a documentação da IA](ia-dos-clubes.md). A Entrega 06 integrou [partidas oficiais nas datas do calendário](competicoes-e-progressao.md), com classificação e efeitos físicos aplicados uma única vez.
 
 ## Núcleo independente
 
@@ -74,7 +74,7 @@ A saída contém versão, seed, status, minutos, bônus de mando, eventos em ord
 
 `SimulateFriendly` autoriza o proprietário, bloqueia a carreira, valida o adversário e a escalação e grava o resultado em uma transação. Cada formulário possui `request_id` UUID. Repetir a mesma solicitação retorna o mesmo registro; reutilizar a chave com seed/adversário diferentes é rejeitado. Uma falha não deixa resultados parciais. Rotas com uma simulação de outra carreira são rejeitadas.
 
-As tabelas oficiais `matches` continuam como calendário da liga. Aplicação definitiva de desgaste, suspensões, classificação e finanças será responsabilidade da operação autorizada de partida nas entregas correspondentes, usando o snapshot do motor uma única vez.
+As tabelas oficiais `matches` continuam como calendário da liga. A Entrega 06 registra seus resultados em `official_match_results`, aplicando desgaste, suspensões e classificação durante a operação autorizada, uma única vez. A integração financeira pertence às entregas correspondentes.
 
 ## Validação
 

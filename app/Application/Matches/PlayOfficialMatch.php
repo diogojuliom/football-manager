@@ -1,0 +1,76 @@
+<?php
+
+namespace App\Application\Matches;
+
+use App\Domain\Career\CareerState;
+use App\Domain\Career\Models\Career;
+use App\Domain\Career\Models\CareerMatch;
+use App\Domain\Career\Models\CareerOperation;
+use App\Domain\Football\Engine\FootballMatchEngine;
+use App\Domain\Football\Engine\MatchInput;
+use App\Domain\Football\Engine\ReplayHash;
+use App\Domain\Football\Models\OfficialMatchResult;
+use LogicException;
+
+/** Internal step of a locked, authorized progression transaction. */
+class PlayOfficialMatch
+{
+    public function __construct(private FootballMatchEngine $engine, private TeamSnapshotFactory $snapshots) {}
+
+    public function execute(Career $career, CareerMatch $match, CareerOperation $operation): OfficialMatchResult
+    {
+        if ($career->state !== CareerState::Processing || $operation->career_id !== $career->id || $operation->status !== 'pending'
+            || $match->career_id !== $career->id || ! $match->scheduled_on->eq($career->current_date)) {
+            throw new LogicException('A partida exige uma operação autorizada na sua data interna.');
+        }
+        $existing = $match->result;
+        if ($existing) {
+            return $existing;
+        }
+        if ($match->status !== 'scheduled') {
+            throw new LogicException('A partida já foi encerrada.');
+        }
+        $humanId = $career->controlledClub->career_club_id;
+        $home = $match->homeClub;
+        $away = $match->awayClub;
+        $teams = [];
+        foreach (['home' => [$home, $away], 'away' => [$away, $home]] as $side => [$club, $opponent]) {
+            if ($club->id === $humanId) {
+                if ($operation->kind !== 'PLAY_MATCH' || (int) $operation->input['match_id'] !== $match->id) {
+                    throw new LogicException('A partida do usuário exige confirmação específica.');
+                }
+                $teams[$side] = $operation->input['human_team'];
+            } else {
+                $teams[$side] = $this->snapshots->make($career, $club, false, $opponent, $side === 'home');
+            }
+        }
+        $input = (new MatchInput([
+            'engine_version' => $operation->input['engine_version'],
+            'seed' => hash('sha256', 'official-v1|'.$career->creation_key.'|'.$match->id),
+            'home' => $teams['home'], 'away' => $teams['away'], 'home_context' => ['neutral' => false],
+        ]))->data;
+        $result = $this->engine->simulate($input);
+        $record = OfficialMatchResult::create([
+            'career_id' => $career->id, 'match_id' => $match->id, 'career_operation_id' => $operation->id,
+            'played_on' => $career->current_date, 'engine_version' => $input['engine_version'], 'seed' => $input['seed'],
+            'home_goals' => $result['home']['stats']['goals'], 'away_goals' => $result['away']['stats']['goals'],
+            'input' => $input, 'result' => $result, 'input_checksum' => ReplayHash::of($input), 'result_checksum' => ReplayHash::of($result),
+        ]);
+        // Existing bans are served by sitting out this club's official match, never by advancing a day.
+        $career->players()->whereIn('career_club_id', [$home->id, $away->id])->where('suspended_matches', '>', 0)->decrement('suspended_matches');
+        foreach (['home', 'away'] as $side) {
+            foreach ($result[$side]['players'] as $stats) {
+                if ($stats['minutes'] === 0 && $stats['red_cards'] === 0) {
+                    continue;
+                }
+                $career->players()->where('career_club_id', $side === 'home' ? $home->id : $away->id)->whereKey($stats['player_id'])->update([
+                    'fitness' => $stats['final_fitness'], 'suspended_matches' => $stats['red_cards'] > 0 ? 1 : 0,
+                ]);
+            }
+        }
+        $match->update(['status' => 'played']);
+        \App\Domain\Career\Models\CompetitionEdition::whereKey($match->competition_edition_id)->where('status', 'scheduled')->update(['status' => 'active']);
+
+        return $record;
+    }
+}
