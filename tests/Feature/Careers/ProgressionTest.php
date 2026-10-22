@@ -186,11 +186,15 @@ class ProgressionTest extends TestCase
         $this->post(route('careers.progression.store', $this->career), $payload)->assertRedirect();
         $this->post(route('careers.progression.store', $this->career), $payload)->assertRedirect();
         $this->assertDatabaseCount('official_match_results', 5);
+        $this->assertDatabaseCount('match_attendances', 5);
         $this->assertSame('2026-01-14', $this->career->fresh()->current_date->toDateString());
         $this->assertSame(CareerState::AwaitingDecision, $this->career->fresh()->state);
         $this->assertSame(1, $unused->fresh()->suspended_matches);
         foreach (OfficialMatchResult::all() as $record) {
             $this->assertSame($record->result_checksum, ReplayHash::of((new FootballMatchEngine)->simulate($record->input)));
+            $this->assertSame($record->attendance->realized, $record->result['attendance']['present']);
+            $this->assertSame($record->attendance->capacity, $record->result['attendance']['capacity']);
+            $this->assertLessThanOrEqual($record->attendance->capacity, $record->attendance->realized);
             foreach (['home', 'away'] as $side) {
                 foreach ($record->result[$side]['players'] as $stats) {
                     $player = $this->career->players()->findOrFail($stats['player_id']);
@@ -249,6 +253,7 @@ class ProgressionTest extends TestCase
         $this->assertSame(40, $player->fresh()->fitness);
         $this->assertDatabaseCount('career_processed_days', 0);
         $this->assertDatabaseCount('official_match_results', 0);
+        $this->assertDatabaseCount('match_attendances', 0);
         $this->post(route('careers.progression.store', $this->career), $this->payload())->assertSessionHasErrors('progression');
         $this->post(route('careers.squad.update', $this->career), [])->assertStatus(405);
         $this->put(route('careers.squad.update', $this->career), [])->assertSessionHasErrors('lineup');
@@ -259,6 +264,7 @@ class ProgressionTest extends TestCase
         $this->assertSame('2026-01-14', $this->career->fresh()->current_date->toDateString());
         $this->assertDatabaseCount('career_processed_days', 13);
         $this->assertDatabaseCount('official_match_results', 2);
+        $this->assertDatabaseCount('match_attendances', 2);
         $this->post(route('careers.operations.resume', [$this->career, $operation]))->assertRedirect();
         $this->assertDatabaseCount('official_match_results', 2);
     }
@@ -304,6 +310,7 @@ class ProgressionTest extends TestCase
         $this->assertSame('pending', $operation->status);
         $this->assertSame($before, $this->career->players()->orderBy('id')->get(['id', 'fitness', 'suspended_matches'])->toArray());
         $this->assertDatabaseCount('official_match_results', 0);
+        $this->assertDatabaseCount('match_attendances', 0);
         $this->assertSame(90, $this->career->matches()->where('status', 'scheduled')->count());
         $this->app->instance(PlayOfficialMatch::class, $real);
         app(CareerProgressionService::class)->execute($this->owner, $this->career, $payload);
@@ -311,6 +318,7 @@ class ProgressionTest extends TestCase
         $side = $match->home_club_id === $this->career->controlledClub->career_club_id ? 'home' : 'away';
         $this->assertSame(ReplayHash::of($operation->input['human_team']), ReplayHash::of($record->input[$side]));
         $this->assertDatabaseCount('official_match_results', 5);
+        $this->assertDatabaseCount('match_attendances', 5);
         $this->assertSame('completed', $operation->fresh()->status);
     }
 
@@ -429,6 +437,9 @@ class ProgressionTest extends TestCase
         $this->assertSame(CareerState::AwaitingSeason, $this->career->fresh()->state);
         $this->assertSame(\Carbon\CarbonImmutable::parse($this->career->matches()->max('scheduled_on'))->addDay()->toDateString(), $season->ended_on->toDateString());
         $this->assertDatabaseCount('official_match_results', 90);
+        $this->assertDatabaseCount('match_attendances', 90);
+        $this->assertSame(90, DB::table('match_attendances')->distinct()->count('match_id'));
+        $this->assertSame(0, DB::table('match_attendances')->whereColumn('realized', '>', 'capacity')->count());
         $this->assertSame(90, OfficialMatchResult::distinct()->count('match_id'));
         $this->assertSame(0, $this->career->matches()->where('status', 'scheduled')->count());
         $table = app(StandingsService::class)->standings($edition);

@@ -54,6 +54,7 @@
 <p>Classificação e artilharia finais foram preservadas no histórico. A criação da próxima temporada será integrada na Entrega 10.</p></section>
 @endif
 <p><a href="{{ route('careers.squad.edit', $career) }}">Gerenciar elenco e táticas</a></p>
+<p><a href="{{ route('careers.stadium.show', $career) }}">Estádio e histórico de público</a></p>
 <p><a href="{{ route('careers.friendlies.create', $career) }}">Simular amistoso</a></p>
 <h2>Classificação — {{ $edition->name }}</h2>
 <div class="table-scroll"><table><thead><tr><th>Posição</th><th>Clube</th><th>Pontos</th><th>Jogos</th><th>Vitórias</th><th>Empates</th><th>Derrotas</th><th>Gols pró</th><th>Gols contra</th><th>Saldo</th></tr></thead><tbody>

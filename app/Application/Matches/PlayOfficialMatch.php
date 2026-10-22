@@ -2,6 +2,8 @@
 
 namespace App\Application\Matches;
 
+use App\Application\Attendance\FanEngagementService;
+use App\Application\Attendance\MatchAttendanceService;
 use App\Domain\Career\CareerState;
 use App\Domain\Career\Models\Career;
 use App\Domain\Career\Models\CareerMatch;
@@ -15,7 +17,8 @@ use LogicException;
 /** Internal step of a locked, authorized progression transaction. */
 class PlayOfficialMatch
 {
-    public function __construct(private FootballMatchEngine $engine, private TeamSnapshotFactory $snapshots) {}
+    public function __construct(private FootballMatchEngine $engine, private TeamSnapshotFactory $snapshots,
+        private MatchAttendanceService $attendance, private FanEngagementService $fans) {}
 
     public function execute(Career $career, CareerMatch $match, CareerOperation $operation): OfficialMatchResult
     {
@@ -44,10 +47,14 @@ class PlayOfficialMatch
                 $teams[$side] = $this->snapshots->make($career, $club, false, $opponent, $side === 'home');
             }
         }
+        $plan = $operation->kind === 'PLAY_MATCH' && (int) $operation->input['match_id'] === $match->id
+            ? ($operation->input['human_attendance_plan'] ?? $this->attendance->forecast($career, $home, $away, $match))
+            : $this->attendance->forecast($career, $home, $away, $match);
+        $realized = $this->attendance->realize($plan, $career->creation_key.'|'.$match->id);
         $input = (new MatchInput([
             'engine_version' => $operation->input['engine_version'],
             'seed' => hash('sha256', 'official-v1|'.$career->creation_key.'|'.$match->id),
-            'home' => $teams['home'], 'away' => $teams['away'], 'home_context' => ['neutral' => false],
+            'home' => $teams['home'], 'away' => $teams['away'], 'home_context' => $this->attendance->homeContext($plan, $realized),
         ]))->data;
         $result = $this->engine->simulate($input);
         $record = OfficialMatchResult::create([
@@ -56,6 +63,8 @@ class PlayOfficialMatch
             'home_goals' => $result['home']['stats']['goals'], 'away_goals' => $result['away']['stats']['goals'],
             'input' => $input, 'result' => $result, 'input_checksum' => ReplayHash::of($input), 'result_checksum' => ReplayHash::of($result),
         ]);
+        $this->attendance->record($career, $match, $plan, $realized);
+        $this->fans->apply($home, $away, $result, $plan);
         // Existing bans are served by sitting out this club's official match, never by advancing a day.
         $career->players()->whereIn('career_club_id', [$home->id, $away->id])->where('suspended_matches', '>', 0)->decrement('suspended_matches');
         foreach (['home', 'away'] as $side) {

@@ -2,6 +2,7 @@
 
 namespace App\Application\Matches;
 
+use App\Application\Attendance\MatchAttendanceService;
 use App\Application\Squads\SquadSheet;
 use App\Domain\Career\Models\Career;
 use App\Domain\Football\Engine\FootballMatchEngine;
@@ -17,7 +18,8 @@ use InvalidArgumentException;
 
 class SimulateFriendly
 {
-    public function __construct(private FootballMatchEngine $engine, private TeamSnapshotFactory $snapshots, private SquadSheet $sheets) {}
+    public function __construct(private FootballMatchEngine $engine, private TeamSnapshotFactory $snapshots,
+        private SquadSheet $sheets, private MatchAttendanceService $attendance) {}
 
     public function execute(User $user, Career $career, array $input): MatchSimulation
     {
@@ -59,12 +61,13 @@ class SimulateFriendly
                 throw ValidationException::withMessages(['away_club_id' => 'Selecione outro clube desta carreira.']);
             }
             try {
+                $attendancePlan = $this->attendance->forecast($career, $home, $away);
+                $realized = $this->attendance->realize($attendancePlan, $career->creation_key.'|friendly|'.$data['seed']);
                 $snapshot = (new MatchInput([
                     'seed' => $data['seed'], 'engine_version' => FootballMatchEngine::VERSION,
                     'home' => $this->snapshots->make($career, $home, ! $aiOnly, $away, true),
                     'away' => $this->snapshots->make($career, $away, false, $home, false),
-                    // No invented attendance or gate receipts before the attendance/finance deliveries.
-                    'home_context' => ['neutral' => false],
+                    'home_context' => $this->attendance->homeContext($attendancePlan, $realized),
                 ]))->data;
             } catch (InvalidArgumentException $exception) {
                 throw ValidationException::withMessages(['lineup' => $exception->getMessage()]);
@@ -75,6 +78,7 @@ class SimulateFriendly
                 'career_id' => $career->id, 'home_club_id' => $home->id, 'away_club_id' => $away->id,
                 'request_id' => $data['request_id'], 'request_checksum' => $requestHash,
                 'seed' => $snapshot['seed'], 'engine_version' => FootballMatchEngine::VERSION,
+                'attendance_plan' => $attendancePlan,
                 'input' => $snapshot, 'result' => $result,
                 'input_checksum' => ReplayHash::of($snapshot), 'result_checksum' => ReplayHash::of($result),
             ]);

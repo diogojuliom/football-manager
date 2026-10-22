@@ -25,7 +25,14 @@
 <tr><th>{{ $label }}</th><td>{{ $result['home']['stats'][$key] }}</td><td>{{ $result['away']['stats'][$key] }}</td></tr>
 @endforeach
 </tbody></table></div>
-<p>Público, ocupação e bilheteria: {{ $official ? 'integração prevista nas entregas de estádios e finanças' : 'não aplicáveis a este amistoso' }}.</p>
+@if(($official && isset($attendance)) || (! $official && $simulation->attendance_plan))
+@php($crowd = $result['attendance'] ?? null)
+<p>{{ $official ? $attendance->stadium_name : $simulation->attendance_plan['stadium_name'] }} · Público: <strong>{{ number_format($crowd['present'], 0, ',', '.') }}</strong> / {{ number_format($crowd['capacity'], 0, ',', '.') }} ({{ number_format($crowd['occupancy'] * 100, 1, ',', '.') }}%).</p>
+<p>Previsão: {{ number_format($official ? $attendance->forecast : $simulation->attendance_plan['forecast'], 0, ',', '.') }} · Importância: {{ $official ? $attendance->importance : $simulation->attendance_plan['importance'] }}/100.</p>
+<p>Preço-base registrado: R$ {{ number_format(($official ? $attendance->ticket_price_cents : $simulation->attendance_plan['input']['price_cents']) / 100, 2, ',', '.') }}. Nenhuma receita é lançada no caixa nesta entrega.</p>
+@else
+<p>Público não registrado para esta partida anterior à Entrega 07.</p>
+@endif
 <h2>Eventos destacados</h2>
 <ol>
 @foreach($result['events'] as $event)

@@ -62,7 +62,7 @@ class FriendlyTest extends TestCase
     private function gameState(): array
     {
         $data = [];
-        foreach (['careers', 'career_clubs', 'career_players', 'career_stadiums', 'career_lineups', 'career_lineup_players', 'competition_editions', 'matches'] as $table) {
+        foreach (['careers', 'career_clubs', 'career_club_support', 'career_players', 'career_stadiums', 'career_lineups', 'career_lineup_players', 'competition_editions', 'matches'] as $table) {
             $data[$table] = DB::table($table)->orderBy('id')->get()->map(fn ($row) => (array) $row)->all();
         }
 
@@ -82,7 +82,9 @@ class FriendlyTest extends TestCase
         $this->assertSame(ReplayHash::of($simulation->result), $simulation->result_checksum);
         $this->assertSame($simulation->result_checksum, ReplayHash::of((new FootballMatchEngine)->simulate($simulation->input)));
         $this->assertSame('friendly-seed', $simulation->seed);
-        $this->assertNull($simulation->result['attendance']['present']);
+        $this->assertSame($simulation->result['attendance']['present'], $simulation->input['home_context']['attendance']);
+        $this->assertGreaterThanOrEqual(0, $simulation->result['attendance']['present']);
+        $this->assertLessThanOrEqual($simulation->attendance_plan['input']['capacity'], $simulation->result['attendance']['present']);
         $this->assertCount(11, $simulation->input['home']['starters']);
         $this->assertCount(7, $simulation->input['home']['substitutes']);
     }
@@ -131,7 +133,8 @@ class FriendlyTest extends TestCase
         }
         $payload = $this->payload() + ['home_context' => ['attendance' => 999999], 'result' => ['home_goals' => 999], 'user_id' => 999];
         $simulation = $this->simulate($payload);
-        $this->assertNull($simulation->result['attendance']['present']);
+        $this->assertSame($simulation->attendance_plan['input']['capacity'], $simulation->result['attendance']['capacity']);
+        $this->assertNotSame(999999, $simulation->result['attendance']['present']);
         $this->assertLessThan(999, $simulation->result['home']['stats']['goals']);
     }
 

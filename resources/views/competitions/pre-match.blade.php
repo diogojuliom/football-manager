@@ -7,7 +7,8 @@
 <p>Revise os titulares, reservas, condição física e táticas antes de confirmar. A partida só começa com sua confirmação.</p>
 <p><a href="{{ route('careers.squad.edit', $career) }}">Revisar escalação e táticas</a></p>
 <p>A confirmação registra o resultado oficial, aplica desgaste e suspensões e conclui os outros jogos desta data. A carreira permanece no mesmo dia após a partida.</p>
-<p>Público e bilheteria serão integrados nas entregas de estádios e finanças.</p>
+<p>{{ $forecast['stadium_name'] }} · Capacidade disponível: {{ number_format($forecast['input']['capacity'], 0, ',', '.') }} · Importância: {{ $forecast['importance'] }}/100.</p>
+<p>Previsão de público: <strong>{{ number_format($forecast['forecast'], 0, ',', '.') }}</strong> com preço-base de R$ {{ number_format($forecast['input']['price_cents'] / 100, 2, ',', '.') }}. O público realizado será registrado após a partida; a bilheteria financeira pertence à Entrega 08.</p>
 @if($decision)
 <p>Confirme primeiro o acontecimento pendente no dashboard.</p>
 @else

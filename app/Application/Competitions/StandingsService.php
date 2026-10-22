@@ -4,13 +4,14 @@ namespace App\Application\Competitions;
 
 use App\Domain\Career\Models\CareerClub;
 use App\Domain\Career\Models\CompetitionEdition;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 class StandingsService
 {
-    public function standings(CompetitionEdition $edition): array
+    public function standings(CompetitionEdition $edition, ?CarbonImmutable $beforeDate = null): array
     {
         $ids = DB::table('competition_entries')->where('career_id', $edition->career_id)->where('competition_edition_id', $edition->id)->pluck('career_club_id');
         $rows = [];
@@ -18,7 +19,7 @@ class StandingsService
             $rows[$club->id] = ['club_id' => $club->id, 'club_code' => $club->code, 'name' => $club->name,
                 'played' => 0, 'points' => 0, 'wins' => 0, 'draws' => 0, 'losses' => 0, 'goals_for' => 0, 'goals_against' => 0, 'goal_difference' => 0];
         }
-        foreach ($this->results($edition)->get(['matches.home_club_id', 'matches.away_club_id', 'results.home_goals', 'results.away_goals']) as $result) {
+        foreach ($this->results($edition, $beforeDate)->get(['matches.home_club_id', 'matches.away_club_id', 'results.home_goals', 'results.away_goals']) as $result) {
             foreach (['home', 'away'] as $side) {
                 $other = $side === 'home' ? 'away' : 'home';
                 $row = &$rows[$result->{$side.'_club_id'}];
@@ -83,13 +84,17 @@ class StandingsService
         return $rows;
     }
 
-    private function results(CompetitionEdition $edition): Builder
+    private function results(CompetitionEdition $edition, ?CarbonImmutable $beforeDate = null): Builder
     {
-        return DB::table('official_match_results as results')
+        $query = DB::table('official_match_results as results')
             ->join('matches', function ($join) {
                 $join->on('matches.id', '=', 'results.match_id')->on('matches.career_id', '=', 'results.career_id');
             })
-            ->where('results.career_id', $edition->career_id)->where('matches.competition_edition_id', $edition->id)
-            ->orderBy('results.match_id');
+            ->where('results.career_id', $edition->career_id)->where('matches.competition_edition_id', $edition->id);
+        if ($beforeDate) {
+            $query->where('matches.scheduled_on', '<', $beforeDate->toDateString());
+        }
+
+        return $query->orderBy('results.match_id');
     }
 }

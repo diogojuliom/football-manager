@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Application\Attendance\MatchAttendanceService;
 use App\Application\Careers\CareerCalendar;
 use App\Application\Careers\CareerProgressionService;
 use App\Domain\Career\CareerState;
@@ -28,14 +29,17 @@ class ProgressionController extends Controller
         return $this->redirect($career, $operation);
     }
 
-    public function preMatch(Career $career, CareerMatch $match, CareerCalendar $calendar)
+    public function preMatch(Career $career, CareerMatch $match, CareerCalendar $calendar, MatchAttendanceService $attendance)
     {
         $this->authorize('view', $career);
         abort_unless($match->career_id === $career->id, 404);
         abort_unless($career->state === CareerState::PreMatch && $calendar->nextMatch($career)?->id === $match->id
             && $match->scheduled_on->eq($career->current_date), 409, 'A partida não está no pré-jogo da data atual.');
 
-        return view('competitions.pre-match', ['career' => $career, 'match' => $match->load(['homeClub', 'awayClub']),
+        $match->load(['homeClub', 'awayClub']);
+
+        return view('competitions.pre-match', ['career' => $career, 'match' => $match,
+            'forecast' => $attendance->forecast($career, $match->homeClub, $match->awayClub, $match),
             'requestId' => (string) Str::uuid(), 'decision' => $calendar->decision($career)]);
     }
 
@@ -44,7 +48,8 @@ class ProgressionController extends Controller
         $this->authorize('view', $career);
         abort_unless($result->career_id === $career->id, 404);
 
-        return view('simulations.show', ['career' => $career, 'simulation' => $result, 'result' => $result->result, 'official' => true]);
+        return view('simulations.show', ['career' => $career, 'simulation' => $result, 'result' => $result->result,
+            'attendance' => $result->attendance, 'official' => true]);
     }
 
     private function redirect(Career $career, CareerOperation $operation)

@@ -5,6 +5,7 @@ use App\Http\Controllers\FriendlyController;
 use App\Http\Controllers\ProgressionController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\SquadController;
+use App\Http\Controllers\StadiumController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'careers.welcome')->name('home');
@@ -31,5 +32,6 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
     Route::get('/careers/{career}/friendlies/create', [FriendlyController::class, 'create'])->name('careers.friendlies.create');
     Route::post('/careers/{career}/friendlies', [FriendlyController::class, 'store'])->name('careers.friendlies.store');
     Route::get('/careers/{career}/friendlies/{simulation}', [FriendlyController::class, 'show'])->name('careers.friendlies.show');
+    Route::get('/careers/{career}/stadium', [StadiumController::class, 'show'])->name('careers.stadium.show');
     Route::resource('careers', CareerController::class)->only(['index', 'create', 'store', 'show']);
 });

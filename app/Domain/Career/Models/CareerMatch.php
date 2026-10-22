@@ -28,6 +28,11 @@ class CareerMatch extends Model
         return $this->hasOne(\App\Domain\Football\Models\OfficialMatchResult::class, 'match_id');
     }
 
+    public function attendance(): HasOne
+    {
+        return $this->hasOne(\App\Domain\Attendance\Models\MatchAttendance::class, 'match_id');
+    }
+
     public function homeClub(): BelongsTo
     {
         return $this->belongsTo(CareerClub::class, 'home_club_id');

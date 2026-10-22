@@ -2,6 +2,7 @@
 
 namespace App\Application\Careers;
 
+use App\Application\Attendance\MatchAttendanceService;
 use App\Application\Competitions\StandingsService;
 use App\Application\Matches\PlayOfficialMatch;
 use App\Application\Matches\TeamSnapshotFactory;
@@ -33,7 +34,8 @@ class CareerProgressionService
     public const ACKNOWLEDGE_EVENT = 'ACKNOWLEDGE_EVENT';
 
     public function __construct(private CareerCalendar $calendar, private TeamSnapshotFactory $snapshots,
-        private PlayOfficialMatch $matches, private StandingsService $standings) {}
+        private PlayOfficialMatch $matches, private StandingsService $standings,
+        private MatchAttendanceService $attendance) {}
 
     public function execute(User $user, Career $career, array $input): CareerOperation
     {
@@ -96,6 +98,7 @@ class CareerProgressionService
                     $opponent = $match->home_club_id === $human->id ? $match->awayClub : $match->homeClub;
                     // Validate and freeze the user's final decisions before reserving the operation.
                     $stored['human_team'] = $this->snapshots->make($career, $human, true, $opponent, $match->home_club_id === $human->id);
+                    $stored['human_attendance_plan'] = $this->attendance->forecast($career, $match->homeClub, $match->awayClub, $match);
                 } else {
                     if ($match && $match->scheduled_on->lte($career->current_date)) {
                         $this->invalid('progression', 'Jogue a partida pendente antes de avançar o calendário.');

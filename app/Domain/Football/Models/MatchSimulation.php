@@ -9,7 +9,7 @@ class MatchSimulation extends Model
 {
     protected $guarded = ['id'];
 
-    protected $casts = ['input' => 'array', 'result' => 'array'];
+    protected $casts = ['input' => 'array', 'result' => 'array', 'attendance_plan' => 'array'];
 
     protected function asJson($value)
     {
