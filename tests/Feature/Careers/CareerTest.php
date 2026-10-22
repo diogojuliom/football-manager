@@ -193,6 +193,84 @@ class CareerTest extends TestCase
         $this->assertDatabaseCount('careers', 1);
     }
 
+    public function test_empty_careers_page_offers_a_direct_link_to_create(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->get(route('careers.index'))
+            ->assertOk()
+            ->assertSee('Sua jornada à beira do gramado começa agora.')
+            ->assertSee('Criar Minha Primeira Carreira')
+            ->assertSee('href="'.route('careers.create').'"', false)
+            ->assertDontSee('Minhas Carreiras Salvas');
+    }
+
+    public function test_saved_careers_page_uses_the_owners_current_saved_data(): void
+    {
+        $owner = User::factory()->create();
+        $career = $this->create($owner, ['name' => 'Meu desafio', 'coach_name' => 'Lia Costa']);
+        $other = $this->create(User::factory()->create(), ['name' => 'Save alheio']);
+        $career->update(['current_date' => '2026-02-03', 'current_season_number' => 2]);
+        $career->controlledClub->club->update(['balance_cents' => 76543]);
+
+        $this->actingAs($owner)->get(route('careers.index'))
+            ->assertOk()
+            ->assertSee('Minhas Carreiras Salvas')
+            ->assertSee('Meu desafio')
+            ->assertSee('Lia Costa')
+            ->assertSee($career->controlledClub->club->name)
+            ->assertSee('03/02/2026')
+            ->assertSee('R$ 765,43')
+            ->assertSee('href="'.route('careers.show', $career).'"', false)
+            ->assertDontSee($other->name)
+            ->assertDontSee('Sua jornada à beira do gramado começa agora.');
+
+        $this->get(route('careers.index', ['page' => 99]))
+            ->assertOk()
+            ->assertSee('Não há carreiras nesta página.')
+            ->assertDontSee('Sua jornada à beira do gramado começa agora.');
+    }
+
+    public function test_new_career_page_preserves_selected_club_and_field_errors_after_validation(): void
+    {
+        $user = User::factory()->create();
+        $club = ClubTemplate::orderBy('id')->firstOrFail();
+        $input = $this->input(['coach_name' => '', 'club_template_id' => $club->id]);
+
+        $this->actingAs($user)->from(route('careers.create'))
+            ->post(route('careers.store'), $input)
+            ->assertRedirect(route('careers.create'))
+            ->assertSessionHasErrors('coach_name');
+
+        $this->get(route('careers.create'))
+            ->assertOk()
+            ->assertSee('Iniciar Nova Carreira')
+            ->assertSee('name="club_template_id" value="'.$club->id.'" checked', false)
+            ->assertSee('value="'.$input['request_id'].'"', false)
+            ->assertSee('value="Rumo ao título"', false)
+            ->assertSee('id="coach-error"', false);
+    }
+
+    public function test_saved_careers_pagination_keeps_existing_careers_reachable(): void
+    {
+        $owner = User::factory()->create();
+        foreach (range(1, 21) as $number) {
+            $this->create($owner, ['name' => "Save $number"]);
+        }
+
+        $this->actingAs($owner)->get(route('careers.index'))
+            ->assertOk()
+            ->assertSee('Save 21')
+            ->assertDontSee('Save 1</span>', false)
+            ->assertSee('aria-label="Páginas das carreiras"', false)
+            ->assertSee('rel="next"', false);
+
+        $this->get(route('careers.index', ['page' => 2]))
+            ->assertOk()
+            ->assertSee('Save 1')
+            ->assertDontSee('Save 21')
+            ->assertSee('rel="prev"', false);
+    }
+
     public function test_form_shows_clubs_and_rejects_invalid_creation_data(): void
     {
         $this->actingAs(User::factory()->create());
