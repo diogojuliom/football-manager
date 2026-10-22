@@ -1,13 +1,14 @@
 <?php
 
 use App\Http\Controllers\CareerController;
+use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\FriendlyController;
 use App\Http\Controllers\ProgressionController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\SquadController;
 use App\Http\Controllers\StadiumController;
+use App\Http\Controllers\StadiumProjectController;
 use App\Http\Controllers\TicketController;
-use App\Http\Controllers\FinanceController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'careers.welcome')->name('home');
@@ -35,6 +36,7 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
     Route::post('/careers/{career}/friendlies', [FriendlyController::class, 'store'])->name('careers.friendlies.store');
     Route::get('/careers/{career}/friendlies/{simulation}', [FriendlyController::class, 'show'])->name('careers.friendlies.show');
     Route::get('/careers/{career}/stadium', [StadiumController::class, 'show'])->name('careers.stadium.show');
+    Route::post('/careers/{career}/stadium/projects', [StadiumProjectController::class, 'store'])->name('careers.stadium.projects.store');
     Route::get('/careers/{career}/tickets', [TicketController::class, 'index'])->name('careers.tickets.index');
     Route::patch('/careers/{career}/tickets/default', [TicketController::class, 'updateDefault'])->name('careers.tickets.default');
     Route::get('/careers/{career}/matches/{match}/tickets/preview', [TicketController::class, 'preview'])->name('careers.matches.tickets.preview');

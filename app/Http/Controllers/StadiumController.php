@@ -3,15 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Application\Attendance\MatchAttendanceService;
+use App\Application\Stadiums\StadiumProjectService;
 use App\Domain\Attendance\Models\MatchAttendance;
 use App\Domain\Career\Models\Career;
 use App\Domain\Career\Models\CompetitionEdition;
+use App\Domain\Career\Models\StadiumProject;
 use App\Domain\Finance\Models\CareerFinancialTransaction;
 use App\Domain\Football\Models\MatchSimulation;
 
 class StadiumController extends Controller
 {
-    public function show(Career $career, MatchAttendanceService $attendance)
+    public function show(Career $career, MatchAttendanceService $attendance, StadiumProjectService $projects)
     {
         $this->authorize('view', $career);
         $club = $career->controlledClub->club->load(['stadium', 'support']);
@@ -32,7 +34,12 @@ class StadiumController extends Controller
         $receipts = CareerFinancialTransaction::where('career_id', $career->id)->where('career_club_id', $club->id)
             ->where('kind', 'ticket_revenue')->whereIn('match_id', $history->getCollection()->pluck('match_id'))
             ->pluck('amount_cents', 'match_id');
+        $works = StadiumProject::where('career_id', $career->id)->where('career_stadium_id', $club->stadium->id)
+            ->orderByDesc('started_on')->orderByDesc('id')->paginate(10, ['*'], 'works_page');
+        $activeWork = $works->getCollection()->firstWhere('status', 'active')
+            ?? StadiumProject::where('career_id', $career->id)->where('career_stadium_id', $club->stadium->id)->where('status', 'active')->first();
+        $offers = $projects->offers($club->stadium);
 
-        return view('careers.stadium', compact('career', 'club', 'history', 'averages', 'nextHome', 'forecast', 'friendlies', 'revenue', 'receipts'));
+        return view('careers.stadium', compact('career', 'club', 'history', 'averages', 'nextHome', 'forecast', 'friendlies', 'revenue', 'receipts', 'works', 'activeWork', 'offers'));
     }
 }

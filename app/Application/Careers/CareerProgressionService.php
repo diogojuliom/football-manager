@@ -6,11 +6,13 @@ use App\Application\Attendance\MatchAttendanceService;
 use App\Application\Competitions\StandingsService;
 use App\Application\Matches\PlayOfficialMatch;
 use App\Application\Matches\TeamSnapshotFactory;
+use App\Application\Stadiums\StadiumProjectService;
 use App\Domain\Career\CareerState;
 use App\Domain\Career\Models\Career;
 use App\Domain\Career\Models\CareerEvent;
 use App\Domain\Career\Models\CareerOperation;
 use App\Domain\Career\Models\CompetitionEdition;
+use App\Domain\Career\Models\StadiumProject;
 use App\Domain\Football\Engine\ReplayHash;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -35,7 +37,7 @@ class CareerProgressionService
 
     public function __construct(private CareerCalendar $calendar, private TeamSnapshotFactory $snapshots,
         private PlayOfficialMatch $matches, private StandingsService $standings,
-        private MatchAttendanceService $attendance) {}
+        private MatchAttendanceService $attendance, private StadiumProjectService $projects) {}
 
     public function execute(User $user, Career $career, array $input): CareerOperation
     {
@@ -104,10 +106,14 @@ class CareerProgressionService
                         $this->invalid('progression', 'Jogue a partida pendente antes de avançar o calendário.');
                     }
                     $event = $this->calendar->nextEvent($career);
+                    $due = $data['action'] === self::ADVANCE_TO_NEXT_EVENT
+                        ? StadiumProject::where('career_id', $career->id)->where('career_club_id', $career->controlledClub->career_club_id)->where('status', 'active')
+                            ->where('due_on', '>=', $career->current_date->toDateString())->min('due_on')
+                        : null;
                     $target = match ($data['action']) {
                         self::ADVANCE_ONE_DAY => $career->current_date->addDay(),
                         self::ADVANCE_TO_NEXT_MATCH => $match?->scheduled_on ?? $event?->scheduled_on,
-                        self::ADVANCE_TO_NEXT_EVENT => $this->earliest($match?->scheduled_on, $event?->scheduled_on),
+                        self::ADVANCE_TO_NEXT_EVENT => $this->earliest($this->earliest($match?->scheduled_on, $event?->scheduled_on), $due ? CarbonImmutable::parse($due) : null),
                     };
                     if (! $target || $target->lt($career->current_date) || $career->current_date->diffInDays($target) > 3660) {
                         $this->invalid('progression', 'Não há um destino válido no calendário desta temporada.');
@@ -178,6 +184,8 @@ class CareerProgressionService
 
     private function processDate(Career $career, CareerOperation $operation, array &$played): CareerState
     {
+        $this->projects->completeDue($career);
+        $this->projects->planForAi($career);
         if ($this->calendar->decision($career)) {
             return CareerState::AwaitingDecision;
         }

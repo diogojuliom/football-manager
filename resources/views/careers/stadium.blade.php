@@ -14,6 +14,46 @@
     <p>Próximo jogo em casa: {{ $nextHome->scheduled_on->format('d/m/Y') }} contra {{ $nextHome->awayClub->name }}. Previsão atual: {{ number_format($forecast['forecast'], 0, ',', '.') }} torcedores; importância {{ $forecast['importance'] }}/100; receita bruta prevista: R$ {{ number_format($forecast['forecast'] * $forecast['input']['price_cents'] / 100, 2, ',', '.') }}.</p>
     @endif
 </section>
+<section class="card" aria-labelledby="stadium-works-title">
+    <h2 id="stadium-works-title">Obras e infraestrutura</h2>
+    <p>Data interna: {{ $career->current_date->format('d/m/Y') }} · Saldo: R$ {{ number_format($club->balance_cents / 100, 2, ',', '.') }}. Os prazos avançam somente quando você confirma a progressão da carreira.</p>
+    @if($activeWork)
+        <p role="status"><strong>Em andamento:</strong> {{ $activeWork->type === 'expansion' ? 'Ampliação de capacidade' : 'Modernização' }}. Início: {{ $activeWork->started_on->format('d/m/Y') }} · Prazo: {{ $activeWork->duration_days }} dias internos · Conclusão prevista: {{ $activeWork->due_on->format('d/m/Y') }}. O benefício será aplicado na conclusão.</p>
+    @elseif($career->state === \App\Domain\Career\CareerState::Processing || $career->state === \App\Domain\Career\CareerState::AwaitingSeason)
+        <p>Não é possível iniciar uma obra enquanto há uma operação pendente ou a temporada está encerrada.</p>
+    @else
+        @forelse($offers as $offer)
+            <div class="card">
+                <h3>{{ $offer['label'] }}</h3>
+                <p>Investimento: R$ {{ number_format($offer['cost_cents'] / 100, 2, ',', '.') }} · Prazo: {{ $offer['days'] }} dias internos · Previsão se iniciar hoje: {{ $career->current_date->addDays($offer['days'])->format('d/m/Y') }}.</p>
+                <p>{{ $offer['capacity_added'] ? '+'.number_format($offer['capacity_added'], 0, ',', '.').' lugares' : '+1 nível de infraestrutura, com efeito na atratividade da torcida' }}.</p>
+                @if($club->balance_cents >= $offer['cost_cents'])
+                    <form method="post" action="{{ route('careers.stadium.projects.store', $career) }}" onsubmit="this.querySelector('button').textContent = 'Iniciando obra…'; this.querySelector('button').disabled = true">
+                        @csrf
+                        <input type="hidden" name="type" value="{{ $offer['id'] }}">
+                        <input type="hidden" name="revision" value="{{ $career->progression_revision }}">
+                        <button class="primary" type="submit">Iniciar {{ strtolower($offer['label']) }}</button>
+                    </form>
+                @else
+                    <p>Saldo insuficiente para esta obra.</p>
+                @endif
+            </div>
+        @empty
+            <p>O estádio já atingiu os limites de capacidade e infraestrutura.</p>
+        @endforelse
+    @endif
+</section>
+<h2>Histórico de obras</h2>
+@if($works->isEmpty())
+    <p>Nenhuma obra iniciada nesta carreira.</p>
+@else
+    <div class="table-scroll"><table><thead><tr><th>Obra</th><th>Início</th><th>Conclusão prevista</th><th>Status</th><th>Investimento</th><th>Benefício</th></tr></thead><tbody>
+    @foreach($works as $work)
+        <tr><td>{{ $work->type === 'expansion' ? 'Ampliação' : 'Modernização' }}</td><td>{{ $work->started_on->format('d/m/Y') }}</td><td>{{ $work->due_on->format('d/m/Y') }}</td><td>{{ $work->status === 'completed' ? 'Concluída em '.$work->completed_on->format('d/m/Y') : 'Em andamento' }}</td><td>R$ {{ number_format($work->cost_cents / 100, 2, ',', '.') }}</td><td>{{ $work->capacity_added ? '+'.number_format($work->capacity_added, 0, ',', '.').' lugares' : '+'.$work->infrastructure_added.' nível de infraestrutura' }}</td></tr>
+    @endforeach
+    </tbody></table></div>
+    {{ $works->links() }}
+@endif
 <h2>Histórico de jogos oficiais em casa</h2>
 @if($history->isEmpty())
 <p>Nenhum público oficial registrado nesta carreira.</p>
@@ -31,5 +71,4 @@
 <p><a href="{{ route('careers.friendlies.show', [$career, $friendly]) }}">Amistoso #{{ $friendly->id }}</a>: {{ number_format($friendly->result['attendance']['present'], 0, ',', '.') }} torcedores.</p>
 @endforeach
 @endif
-<p>Obras e intervenções no estádio serão disponibilizadas na Entrega 09.</p>
 @endsection

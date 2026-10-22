@@ -438,7 +438,9 @@ class ProgressionTest extends TestCase
         $this->assertSame(\Carbon\CarbonImmutable::parse($this->career->matches()->max('scheduled_on'))->addDay()->toDateString(), $season->ended_on->toDateString());
         $this->assertDatabaseCount('official_match_results', 90);
         $this->assertDatabaseCount('match_attendances', 90);
-        $this->assertDatabaseCount('career_financial_transactions', 180);
+        $this->assertSame(180, CareerFinancialTransaction::whereNotNull('match_id')->count());
+        $this->assertSame(\App\Domain\Career\Models\StadiumProject::where('career_id', $this->career->id)->count(),
+            CareerFinancialTransaction::where('career_id', $this->career->id)->where('kind', 'investment')->count());
         $this->assertSame(90, DB::table('match_attendances')->distinct()->count('match_id'));
         $this->assertSame(0, DB::table('match_attendances')->whereColumn('realized', '>', 'capacity')->count());
         $this->assertSame(90, OfficialMatchResult::distinct()->count('match_id'));
