@@ -28,6 +28,56 @@ class SessionTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    public function test_login_and_registration_render_native_accessible_forms_and_real_recovery_link(): void
+    {
+        $this->get('/login')->assertOk()
+            ->assertSee('Bem-vindo de volta!')
+            ->assertSee('Monte seu elenco.')
+            ->assertSee('name="email"', false)
+            ->assertSee('name="password"', false)
+            ->assertSee('name="remember"', false)
+            ->assertSee('data-loading-text="Autenticando..."', false)
+            ->assertSee('aria-controls="password"', false)
+            ->assertSee(route('password.request'))
+            ->assertSee(route('register'));
+
+        $this->get('/register')->assertOk()
+            ->assertSee('Criar Nova Conta')
+            ->assertSee('name="name"', false)
+            ->assertSee('name="password_confirmation"', false)
+            ->assertSee('id="password-hints"', false)
+            ->assertSee('data-loading-text="Cadastrando..."', false)
+            ->assertSee('Maiúscula (opcional)')
+            ->assertSee(route('login'));
+    }
+
+    public function test_validation_errors_are_announced_and_old_email_is_escaped(): void
+    {
+        $this->from('/register')->post('/register', [
+            'name' => 'Ana', 'email' => 'ana<script>@example.com',
+            'password' => 'short', 'password_confirmation' => 'different',
+        ])->assertSessionHasErrors(['email', 'password']);
+
+        $this->get('/register')->assertOk()
+            ->assertSee('role="alert"', false)
+            ->assertSee('aria-invalid="true"', false)
+            ->assertSee('id="email-error"', false)
+            ->assertSee('ana&lt;script&gt;@example.com', false)
+            ->assertDontSee('ana<script>@example.com', false);
+    }
+
+    public function test_remember_me_uses_laravel_persistent_login_cookie(): void
+    {
+        $user = User::factory()->create(['password' => 'secret-password']);
+        $response = $this->post('/login', ['email' => $user->email, 'password' => 'secret-password', 'remember' => '1']);
+
+        $response->assertRedirect(route('careers.index'));
+        $this->assertAuthenticatedAs($user);
+        $this->assertNotEmpty($user->fresh()->remember_token);
+        $this->assertNotEmpty(array_filter($response->headers->getCookies(),
+            fn ($cookie) => str_starts_with($cookie->getName(), 'remember_')));
+    }
+
     public function test_registration_rejects_duplicate_emails_and_unconfirmed_passwords(): void
     {
         User::factory()->create(['email' => 'ana@example.com']);

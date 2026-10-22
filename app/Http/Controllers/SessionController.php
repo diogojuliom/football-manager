@@ -18,7 +18,7 @@ class SessionController extends Controller
             $request->merge(['email' => Str::lower($request->input('email'))]);
         }
         $data = $request->validate(['email' => $this->emailRules(), 'password' => ['required', 'string']]);
-        if (! Auth::attempt($data)) {
+        if (! Auth::attempt($data, $request->boolean('remember'))) {
             throw ValidationException::withMessages(['email' => 'E-mail ou senha incorretos.']);
         }
         $this->startSession($request);
