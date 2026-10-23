@@ -3,11 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#08120e">
+    <meta name="theme-color" content="#070a12">
     <title>@yield('title', 'Football Manager Web')</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 @php
@@ -21,14 +18,15 @@
         <button class="icon-button menu-button" type="button" data-menu-toggle aria-controls="game-sidebar" aria-expanded="false" aria-label="Abrir menu">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
-        <a class="game-brand" href="{{ $gameCareer ? route('careers.show', $gameCareer) : route('home') }}" aria-label="Football Manager Web">
-            <span class="game-brand-mark" aria-hidden="true">FM</span>
-            <span><strong>FOOTBALL MANAGER</strong><small>WEB EDITION</small></span>
-        </a>
+        @if($gameCareer)
+            <div class="topbar-title"><strong>@yield('page-label', 'Football Manager')</strong><small>@yield('page-context', $gameCareer->name)</small></div>
+        @else
+            <a class="game-brand" href="{{ route('home') }}" aria-label="Football Manager Web"><span class="game-brand-mark" aria-hidden="true">FM</span><span><strong>FOOTBALL MANAGER</strong><small>WEB EDITION</small></span></a>
+        @endif
         @if($gameCareer)
             <div class="topbar-context" aria-label="Contexto da carreira">
-                <span>{{ $gameCareer->current_date->format('d/m/Y') }}</span>
-                <strong>Temporada {{ $gameCareer->current_season_number }}</strong>
+                <span>▣ {{ $gameCareer->current_date->format('d/m/Y') }}</span>
+                <strong>R$ {{ number_format(($gameClub?->balance_cents ?? 0) / 100, 2, ',', '.') }}</strong>
             </div>
         @endif
         @auth
@@ -47,7 +45,7 @@
         @if($gameCareer && $gameClub)
             <div class="club-identity">
                 <span class="club-monogram" aria-hidden="true">{{ collect(explode(' ', $gameClub->name))->map(fn ($word) => mb_substr($word, 0, 1))->take(3)->implode('') }}</span>
-                <span><strong>{{ $gameClub->name }}</strong><small>{{ $gameCareer->name }}</small></span>
+                <span><strong>{{ $gameClub->name }}</strong><small>{{ $gameCareer->coach_name }}</small></span>
             </div>
             <nav class="game-nav">
                 <p class="nav-label">Carreira</p>

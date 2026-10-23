@@ -37,6 +37,9 @@ class InterfaceExperienceTest extends TestCase
         $this->get(route('careers.show', $this->career))
             ->assertOk()
             ->assertSee('data-menu-toggle', false)
+            ->assertSee('career-match-hero', false)
+            ->assertSee('career-reference-grid', false)
+            ->assertSee('career-mobile-nav', false)
             ->assertSee('Central de progressão')
             ->assertSee('Próxima partida')
             ->assertSee('Avançar 1 dia')
@@ -47,6 +50,9 @@ class InterfaceExperienceTest extends TestCase
             ->assertSee('id="calendario"', false)
             ->assertSee('id="estatisticas"', false)
             ->assertSee('id="historico"', false)
+            ->assertSee(route('careers.squad.edit', $this->career))
+            ->assertSee(route('careers.stadium.show', $this->career))
+            ->assertSee(route('careers.finances.show', $this->career))
             ->assertSee('data-progression', false);
     }
 

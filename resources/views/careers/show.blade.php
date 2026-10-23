@@ -1,102 +1,114 @@
 @extends('careers.layout')
 @section('title', $career->name.' — Football Manager')
+@section('page-label', 'Dashboard')
+@section('page-context', $career->name)
 @section('content')
 @php
     $club = $career->controlledClub->club;
     $clubRow = collect($standings)->firstWhere('club_id', $club->id);
     $clubPosition = collect($standings)->search(fn ($row) => $row['club_id'] === $club->id);
     $averageFitness = (int) round($club->players->avg('fitness') ?? 0);
+    $suspended = $club->players->where('suspended_matches', '>', 0)->count();
     $stateLabel = match($career->state) {
         \App\Domain\Career\CareerState::AwaitingDecision => 'Aguardando decisão',
-        \App\Domain\Career\CareerState::Processing => 'Processando ação autorizada',
+        \App\Domain\Career\CareerState::Processing => 'Processando progressão',
         \App\Domain\Career\CareerState::PreMatch => 'Pré-jogo',
         \App\Domain\Career\CareerState::AwaitingMatch => 'Aguardando partida',
-        \App\Domain\Career\CareerState::AwaitingSeason => 'Aguardando próxima temporada',
+        \App\Domain\Career\CareerState::AwaitingSeason => 'Fim de temporada',
     };
     $monogram = collect(explode(' ', $club->name))->map(fn ($word) => mb_substr($word, 0, 1))->take(3)->implode('');
+    $recentResults = $matches->getCollection()->filter(fn ($match) => $match->result)->sortByDesc('scheduled_on')->take(3);
+    $topPlayers = $club->players->sortByDesc('fitness')->take(8);
 @endphp
 
-<section class="dashboard-hero" aria-label="Resumo da carreira">
-    <div class="hero-content">
-        <p class="eyebrow">Central do treinador</p>
-        <div class="hero-club">
-            <span class="club-monogram" aria-hidden="true">{{ $monogram }}</span>
-            <div><h1>{{ $club->name }}</h1><p>{{ $career->name }} · Treinador {{ $career->coach_name }} · Dados-base {{ $career->version->version }}</p></div>
-        </div>
-        <div class="hero-meta">
-            <span>📅 {{ $career->current_date->format('d/m/Y') }}</span>
-            <span>Temporada {{ $career->current_season_number }}</span>
-            <span>{{ $stateLabel }}</span>
-        </div>
-        <p class="muted">Seu progresso confirmado fica salvo. O calendário só avança quando você solicita uma progressão.</p>
-    </div>
-    <div class="next-match-card">
-        <small>Próxima partida</small>
-        @if($nextMatch)
-            <div class="match-up"><strong>{{ $nextMatch->homeClub->name }}</strong><span>×</span><strong>{{ $nextMatch->awayClub->name }}</strong></div>
-            <p>{{ $nextMatch->scheduled_on->format('d/m/Y') }} · {{ $nextMatch->home_club_id === $club->id ? 'Em casa' : 'Fora de casa' }} · {{ $career->current_date->diffInDays($nextMatch->scheduled_on) }} dias restantes</p>
-        @else
-            <p>Não há mais partidas do seu clube nesta temporada.</p>
-        @endif
-    </div>
-</section>
+<div class="career-dashboard-view">
+    <h1 class="game-sr-only">Dashboard da carreira {{ $career->name }}</h1>
+    <section class="career-match-hero" aria-labelledby="next-match-title">
+        <div class="career-match-overlay" aria-hidden="true"></div>
+        <div class="career-match-content">
+            <div class="career-match-info">
+                <p class="career-match-kicker"><span aria-hidden="true"></span>{{ $edition->name }} · {{ $nextMatch?->scheduled_on?->format('d/m/Y') ?? 'Temporada encerrada' }}</p>
+                @if($nextMatch)
+                    <div class="career-teams" id="next-match-title">
+                        <div class="career-team"><span class="career-team-badge">{{ collect(explode(' ', $nextMatch->homeClub->name))->map(fn ($word) => mb_substr($word, 0, 1))->take(3)->implode('') }}</span><strong>{{ $nextMatch->homeClub->name }}</strong><small>Mandante</small></div>
+                        <div class="career-versus"><b>×</b><span>{{ $career->current_date->diffInDays($nextMatch->scheduled_on) }} dias</span></div>
+                        <div class="career-team"><span class="career-team-badge away">{{ collect(explode(' ', $nextMatch->awayClub->name))->map(fn ($word) => mb_substr($word, 0, 1))->take(3)->implode('') }}</span><strong>{{ $nextMatch->awayClub->name }}</strong><small>Visitante</small></div>
+                    </div>
+                    <p class="career-match-caption">Seu clube joga <strong>{{ $nextMatch->home_club_id === $club->id ? 'em casa' : 'fora de casa' }}</strong> · Rodada {{ $nextMatch->round }}</p>
+                @else
+                    <div class="career-no-match" id="next-match-title"><span class="career-team-badge">{{ $monogram }}</span><div><strong>Temporada concluída</strong><p>Não há mais partidas do seu clube nesta edição.</p></div></div>
+                @endif
+            </div>
 
-<div class="stat-grid" aria-label="Indicadores rápidos">
-    <article class="stat-card"><span>Classificação</span><strong>{{ $clubPosition !== false ? ($clubPosition + 1).'º lugar' : '—' }}</strong><small>{{ $clubRow['points'] ?? 0 }} pontos em {{ $clubRow['played'] ?? 0 }} jogos</small></article>
-    <article class="stat-card"><span>Condição do elenco</span><strong>{{ $averageFitness }}%</strong><small>{{ $club->players->where('suspended_matches', '>', 0)->count() }} suspenso(s)</small></article>
-    <article class="stat-card"><span>Saldo do clube</span><strong>R$ {{ number_format($club->balance_cents / 100, 2, ',', '.') }}</strong><small>Permanente entre temporadas</small></article>
-    <article class="stat-card"><span>Estádio</span><strong>{{ number_format($club->stadium->available_capacity, 0, ',', '.') }}</strong><small>{{ $club->stadium->name }} · nível {{ $club->stadium->infrastructure_level }}</small></article>
+            <div class="career-progress-card" aria-labelledby="progress-title">
+                <div class="career-progress-heading"><div><h2 id="progress-title">Central de progressão</h2><p>{{ $stateLabel }}</p></div><span class="career-state-dot" aria-hidden="true"></span></div>
+                @if($pendingOperation)
+                    <p class="career-progress-message">Uma operação autorizada foi interrompida e pode ser retomada com segurança.</p>
+                    <form data-progression method="post" action="{{ route('careers.operations.resume', [$career, $pendingOperation]) }}">@csrf<button class="career-main-action" data-loading-label="Retomando…">Retomar operação autorizada</button></form>
+                @elseif($decision)
+                    <p class="career-progress-message"><strong>{{ $decision->title }}</strong><br>{{ $decision->scheduled_on->format('d/m/Y') }} · decisão obrigatória</p>
+                    <form data-progression method="post" action="{{ route('careers.progression.store', $career) }}">@csrf<input type="hidden" name="request_id" value="{{ $requestId }}"><input type="hidden" name="revision" value="{{ $career->progression_revision }}"><input type="hidden" name="event_id" value="{{ $decision->id }}"><button class="career-main-action" name="action" value="ACKNOWLEDGE_EVENT">Confirmar acontecimento</button></form>
+                @elseif($career->state === \App\Domain\Career\CareerState::PreMatch && $nextMatch)
+                    <div class="career-ready"><span aria-hidden="true">⚽</span><p><strong>Chegou o dia do jogo!</strong><br>O elenco aguarda no vestiário.</p></div>
+                    <a class="career-main-action amber" href="{{ route('careers.matches.pre-match', [$career, $nextMatch]) }}">Jogar partida</a>
+                @elseif($career->state === \App\Domain\Career\CareerState::AwaitingSeason)
+                    <p class="career-progress-message"><strong>Temporada encerrada</strong><br>Campeão: {{ $season->summary[0]['standings'][0]['name'] }}</p>
+                    @if(!$pendingOperation)<form data-progression method="post" action="{{ route('careers.progression.store', $career) }}">@csrf<input type="hidden" name="request_id" value="{{ $requestId }}"><input type="hidden" name="revision" value="{{ $career->progression_revision }}"><button class="career-main-action blue" name="action" value="START_NEXT_SEASON">Iniciar temporada {{ $career->current_season_number + 1 }}</button></form>@endif
+                @else
+                    <form class="career-progress-actions" data-progression method="post" action="{{ route('careers.progression.store', $career) }}">@csrf<input type="hidden" name="request_id" value="{{ $requestId }}"><input type="hidden" name="revision" value="{{ $career->progression_revision }}"><button class="career-main-action" name="action" value="ADVANCE_TO_NEXT_MATCH" data-loading-label="Simulando dias…">Próxima partida</button><div><button name="action" value="ADVANCE_ONE_DAY">Avançar 1 dia</button><button name="action" value="ADVANCE_TO_NEXT_EVENT">Próximo acontecimento</button></div></form>
+                @endif
+                @if($nextEvent)<p class="career-next-event">Próximo: {{ $nextEvent->title }} · {{ $nextEvent->scheduled_on->format('d/m/Y') }}</p>@endif
+            </div>
+        </div>
+    </section>
+
+    <section class="career-summary-strip" aria-label="Resumo da carreira">
+        <article><span>Temporada</span><strong>{{ $career->current_season_number }}</strong><small>{{ $stateLabel }}</small></article>
+        <article><span>Classificação</span><strong>{{ $clubPosition !== false ? ($clubPosition + 1).'º' : '—' }}</strong><small>{{ $clubRow['points'] ?? 0 }} pts · {{ $clubRow['played'] ?? 0 }} jogos</small></article>
+        <article><span>Condição do elenco</span><strong>{{ $averageFitness }}%</strong><small>{{ $suspended }} suspenso(s)</small></article>
+        <article><span>Obra em andamento</span><strong>{{ $activeWork ? ($activeWork->type === 'expansion' ? 'Ampliação' : 'Modernização') : 'Nenhuma' }}</strong><small>{{ $activeWork ? 'Conclusão '.$activeWork->due_on->format('d/m/Y') : 'Infraestrutura nível '.$club->stadium->infrastructure_level }}</small></article>
+    </section>
+
+    <div class="career-reference-grid">
+        <section class="career-dashboard-card career-table-card" id="classificacao">
+            <header><div><h2>Classificação — {{ $edition->name }}</h2><p>Temporada {{ $displaySeason->number }}</p></div><span>Atualizada</span></header>
+            <div class="table-scroll" tabindex="0" aria-label="Classificação completa"><table><thead><tr><th>Pos</th><th>Clube</th><th>Pts</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr></thead><tbody>@foreach($standings as $row)<tr @class(['is-controlled' => $row['club_id'] === $club->id])><td><span class="position">{{ $loop->iteration }}</span></td><td><strong>{{ $row['name'] }}</strong></td><td><strong>{{ $row['points'] }}</strong></td><td>{{ $row['played'] }}</td><td>{{ $row['wins'] }}</td><td>{{ $row['draws'] }}</td><td>{{ $row['losses'] }}</td><td>{{ $row['goal_difference'] > 0 ? '+' : '' }}{{ $row['goal_difference'] }}</td></tr>@endforeach</tbody></table></div>
+        </section>
+
+        <section class="career-dashboard-card career-activity-card">
+            <header><div><h2>Últimos jogos e eventos</h2><p>Ordem do calendário interno</p></div></header>
+            <div class="career-activity-list">
+                @if($nextEvent)<article class="important"><span class="career-activity-icon">!</span><div><time>{{ $nextEvent->scheduled_on->format('d/m/Y') }}</time><strong>{{ $nextEvent->title }}</strong><small>Próximo acontecimento</small></div></article>@endif
+                @if($activeWork)<article><span class="career-activity-icon">▰</span><div><time>{{ $activeWork->due_on->format('d/m/Y') }}</time><strong>{{ $activeWork->type === 'expansion' ? 'Ampliação do estádio' : 'Modernização do estádio' }}</strong><small>Obra em andamento</small></div></article>@endif
+                @foreach($events->reject(fn ($event) => $nextEvent && $event->id === $nextEvent->id)->take(3) as $event)<article><span class="career-activity-icon">{{ $event->status === 'processed' ? '✓' : '◷' }}</span><div><time>{{ $event->scheduled_on->format('d/m/Y') }}</time><strong>{{ $event->title }}</strong><small>{{ $event->status === 'processed' ? 'Processado' : 'Pendente' }}</small></div></article>@endforeach
+                @foreach($recentResults as $match)<article><span class="career-activity-icon">⚽</span><div><time>{{ $match->scheduled_on->format('d/m/Y') }}</time><strong><a href="{{ route('careers.results.show', [$career, $match->result]) }}">{{ $match->homeClub->name }} {{ $match->result->home_goals }} × {{ $match->result->away_goals }} {{ $match->awayClub->name }}</a></strong><small>Resultado oficial</small></div></article>@endforeach
+                @if(!$nextEvent && !$activeWork && $events->isEmpty() && $recentResults->isEmpty())<p class="empty-state">Nenhum acontecimento registrado.</p>@endif
+            </div>
+        </section>
+
+        <section class="career-dashboard-card career-squad-card" id="elenco">
+            <header><div><h2>Elenco principal</h2><p>Condição física dos atletas</p></div><a href="{{ route('careers.squad.edit', $career) }}">Gerenciar táticas</a></header>
+            <div class="career-player-grid">@foreach($topPlayers as $player)<article><span class="career-position">{{ $player->primary_position }}</span><div><strong>{{ $player->name }}</strong><span><i style="width: {{ $player->fitness }}%"></i></span></div><b>{{ $player->fitness }}%</b></article>@endforeach</div>
+        </section>
+
+        <section class="career-dashboard-card career-scorers-card" id="estatisticas">
+            <header><div><h2>Artilharia</h2><p>Temporada {{ $displaySeason->number }}</p></div></header>
+            @if($scorers)<ol class="career-scorers">@foreach(array_slice($scorers, 0, 5) as $row)<li><span>{{ $loop->iteration }}º</span><div><strong>{{ $row['name'] }}</strong><small>{{ $row['club_name'] }}</small></div><b>{{ $row['goals'] }}</b></li>@endforeach</ol>@else<p class="empty-state">Nenhum gol oficial registrado.</p>@endif
+        </section>
+    </div>
+
+    <section class="career-dashboard-card career-calendar-card" id="calendario">
+        <header><div><h2>Calendário da liga</h2><p>Rodadas e resultados · Temporada {{ $displaySeason->number }}</p></div><span>{{ $matches->total() }} partidas</span></header>
+        <div class="table-scroll" tabindex="0" aria-label="Calendário da liga"><table><thead><tr><th>Data</th><th>Rodada</th><th>Mandante</th><th>Visitante</th><th>Resultado</th></tr></thead><tbody>@foreach($matches as $match)<tr><td>{{ $match->scheduled_on->format('d/m/Y') }}</td><td>{{ $match->round }}</td><td>{{ $match->homeClub->name }}</td><td>{{ $match->awayClub->name }}</td><td>@if($match->result)<a href="{{ route('careers.results.show', [$career, $match->result]) }}"><strong>{{ $match->result->home_goals }} × {{ $match->result->away_goals }}</strong></a>@else<span class="badge">Agendada</span>@endif</td></tr>@endforeach</tbody></table></div><div class="pagination">{{ $matches->links() }}</div>
+    </section>
+
+    <div class="career-bottom-grid">
+        <section class="career-dashboard-card"><header><div><h2>O clube</h2><p>Administração e infraestrutura</p></div></header><dl class="career-club-data"><div><dt>Saldo</dt><dd>R$ {{ number_format($club->balance_cents / 100, 2, ',', '.') }}</dd></div><div><dt>Estádio</dt><dd>{{ $club->stadium->name }}</dd></div><div><dt>Capacidade</dt><dd>{{ number_format($club->stadium->available_capacity, 0, ',', '.') }}</dd></div><div><dt>Dados-base</dt><dd>{{ $career->version->version }}</dd></div></dl><div class="career-club-actions"><a href="{{ route('careers.finances.show', $career) }}">Finanças</a><a href="{{ route('careers.stadium.show', $career) }}">Estádio e obras</a><a href="{{ route('careers.tickets.index', $career) }}">Ingressos</a><a href="{{ route('careers.friendlies.create', $career) }}">Amistosos</a></div></section>
+        <section class="career-dashboard-card" id="historico"><header><div><h2>Histórico de temporadas</h2><p>Conquistas e arquivos da carreira</p></div></header>@if($completedSeasons->isNotEmpty())<div class="career-season-list">@foreach($completedSeasons as $completed)<article><span>Temporada {{ $completed->number }}</span><strong>{{ $completed->summary[0]['standings'][0]['name'] }}</strong><small>{{ $completed->starts_on->format('d/m/Y') }} a {{ $completed->ended_on->format('d/m/Y') }}</small><a href="{{ route('careers.show', ['career' => $career, 'season' => $completed->number]) }}">Ver classificação, artilharia e jogos</a></article>@endforeach</div>@else<p class="empty-state">A primeira temporada ainda está em andamento.</p>@endif</section>
+    </div>
+
+    <p class="career-save-note">Carreira “{{ $career->name }}” · Treinador {{ $career->coach_name }} · O calendário só avança por uma ação explícita.</p>
 </div>
 
-@if($season->status === 'completed')
-<section class="notice notice-success"><span aria-hidden="true">✓</span><div><strong>Temporada encerrada</strong><p>Encerramento esportivo em {{ $season->ended_on->format('d/m/Y') }}. Campeão: <strong>{{ $season->summary[0]['standings'][0]['name'] }}</strong>. Classificação, artilharia e resultados finais foram preservados.</p>
-@if(!$pendingOperation)<form data-progression method="post" action="{{ route('careers.progression.store', $career) }}">@csrf<input type="hidden" name="request_id" value="{{ $requestId }}"><input type="hidden" name="revision" value="{{ $career->progression_revision }}"><button class="primary" name="action" value="START_NEXT_SEASON">Iniciar temporada {{ $career->current_season_number + 1 }}</button></form>@endif
-</div></section>
-@endif
-
-<div class="dashboard-grid">
-    <div class="stack">
-        <section class="panel" aria-labelledby="progress-title">
-            <div class="panel-header"><div><h2 id="progress-title">Central de progressão</h2><p>A próxima partida é a ação principal e para automaticamente no pré-jogo.</p></div><span class="badge">{{ $stateLabel }}</span></div>
-            @if($pendingOperation)
-                <div class="notice notice-warning"><span>!</span><p>Uma operação já autorizada aguarda conclusão. Retome-a para recuperar o progresso com segurança.</p></div>
-                <form class="progress-actions" data-progression method="post" action="{{ route('careers.operations.resume', [$career, $pendingOperation]) }}">@csrf<button class="primary primary-action">Retomar operação autorizada</button></form>
-            @elseif($decision)
-                <p>Acontecimento pendente: <strong>{{ $decision->title }}</strong> ({{ $decision->scheduled_on->format('d/m/Y') }}).</p>
-                <form class="progress-actions" data-progression method="post" action="{{ route('careers.progression.store', $career) }}">@csrf<input type="hidden" name="request_id" value="{{ $requestId }}"><input type="hidden" name="revision" value="{{ $career->progression_revision }}"><input type="hidden" name="event_id" value="{{ $decision->id }}"><button class="primary primary-action" name="action" value="ACKNOWLEDGE_EVENT">Confirmar ciência do acontecimento</button></form>
-            @elseif($career->state === \App\Domain\Career\CareerState::PreMatch && $nextMatch)
-                <a class="btn btn-primary primary-action" href="{{ route('careers.matches.pre-match', [$career, $nextMatch]) }}">Jogar partida</a>
-            @elseif($career->state !== \App\Domain\Career\CareerState::AwaitingSeason)
-                <form class="progress-actions" data-progression method="post" action="{{ route('careers.progression.store', $career) }}">@csrf<input type="hidden" name="request_id" value="{{ $requestId }}"><input type="hidden" name="revision" value="{{ $career->progression_revision }}"><button class="primary primary-action" name="action" value="ADVANCE_TO_NEXT_MATCH">Próxima partida</button><div class="secondary-actions"><button name="action" value="ADVANCE_ONE_DAY">Avançar 1 dia</button><button name="action" value="ADVANCE_TO_NEXT_EVENT">Próximo acontecimento</button></div></form>
-            @endif
-            @if($nextEvent)<p class="form-help">Próximo acontecimento: {{ $nextEvent->title }}, em {{ $nextEvent->scheduled_on->format('d/m/Y') }}.</p>@endif
-        </section>
-
-        <section class="panel" id="classificacao">
-            <div class="panel-header"><div><h2>Classificação — {{ $edition->name }}</h2><p>Temporada {{ $displaySeason->number }}</p></div></div>
-            <div class="table-scroll"><table><thead><tr><th>Posição</th><th>Clube</th><th>Pontos</th><th>Jogos</th><th>Vitórias</th><th>Empates</th><th>Derrotas</th><th>Gols pró</th><th>Gols contra</th><th>Saldo</th></tr></thead><tbody>@foreach($standings as $row)<tr @class(['is-controlled' => $row['club_id'] === $club->id])><td><span class="position">{{ $loop->iteration }}</span></td><td><strong>{{ $row['name'] }}</strong></td>@foreach(['points','played','wins','draws','losses','goals_for','goals_against','goal_difference'] as $field)<td>{{ $row[$field] }}</td>@endforeach</tr>@endforeach</tbody></table></div>
-        </section>
-
-        <section class="panel" id="calendario">
-            <div class="panel-header"><div><h2>Calendário da liga — Temporada {{ $displaySeason->number }}</h2><p>Rodadas, mandos e resultados oficiais</p></div></div>
-            <div class="table-scroll"><table><thead><tr><th>Data</th><th>Rodada</th><th>Mandante</th><th>Visitante</th><th>Resultado</th></tr></thead><tbody>@foreach($matches as $match)<tr><td>{{ $match->scheduled_on->format('d/m/Y') }}</td><td>{{ $match->round }}</td><td>{{ $match->homeClub->name }}</td><td>{{ $match->awayClub->name }}</td><td>@if($match->result)<a href="{{ route('careers.results.show', [$career, $match->result]) }}"><strong>{{ $match->result->home_goals }} × {{ $match->result->away_goals }}</strong></a>@else<span class="badge">Agendada</span>@endif</td></tr>@endforeach</tbody></table></div>
-            <div class="pagination">{{ $matches->links() }}</div>
-        </section>
-
-        <section class="panel" id="estatisticas">
-            <div class="panel-header"><div><h2>Artilharia e elenco</h2><p>Principais números esportivos</p></div><a href="{{ route('careers.squad.edit', $career) }}">Gerenciar elenco</a></div>
-            <h3>Artilharia</h3>
-            @if($scorers)<div class="table-scroll"><table><thead><tr><th>Jogador</th><th>Clube</th><th>Gols</th></tr></thead><tbody>@foreach(array_slice($scorers,0,20) as $row)<tr><td>{{ $row['name'] }}</td><td>{{ $row['club_name'] }}</td><td><strong>{{ $row['goals'] }}</strong></td></tr>@endforeach</tbody></table></div>@else<p class="empty-state">Nenhum gol oficial registrado.</p>@endif
-            <h3>Elenco</h3>
-            <div class="table-scroll"><table><thead><tr><th>Jogador</th><th>Posição</th><th>Idade</th><th>Condição física</th><th>Moral</th></tr></thead><tbody>@foreach($club->players as $player)<tr><td>{{ $player->name }}</td><td>{{ $player->primary_position }}</td><td>{{ $player->age }}</td><td>{{ $player->fitness }}</td><td>{{ $player->morale }}</td></tr>@endforeach</tbody></table></div>
-        </section>
-    </div>
-
-    <aside class="stack">
-        <section class="panel"><div class="panel-header"><h2>Gestão do clube</h2></div><div class="quick-links"><a class="quick-link" href="{{ route('careers.squad.edit',$career) }}"><span>♟</span>Elenco e táticas</a><a class="quick-link" href="{{ route('careers.stadium.show',$career) }}"><span>▰</span>Estádio e obras</a><a class="quick-link" href="{{ route('careers.tickets.index',$career) }}"><span>◇</span>Ingressos</a><a class="quick-link" href="{{ route('careers.finances.show',$career) }}"><span>$</span>Finanças</a><a class="quick-link" href="{{ route('careers.friendlies.create',$career) }}"><span>⚽</span>Simular amistoso</a><a class="quick-link" href="#historico"><span>◷</span>Histórico</a></div></section>
-        <section class="panel"><div class="panel-header"><h2>Infraestrutura</h2></div><dl class="data-list"><div><dt>Estádio</dt><dd>{{ $club->stadium->name }}</dd></div><div><dt>Capacidade</dt><dd>{{ number_format($club->stadium->available_capacity,0,',','.') }}</dd></div><div><dt>Obra em andamento</dt><dd>{{ $activeWork ? ($activeWork->type === 'expansion' ? 'Ampliação' : 'Modernização').' até '.$activeWork->due_on->format('d/m/Y') : 'Nenhuma' }}</dd></div></dl></section>
-        <section class="panel"><div class="panel-header"><h2>Acontecimentos</h2></div>@if($events->isEmpty())<p class="empty-state">Nenhum acontecimento registrado.</p>@else<ul class="timeline">@foreach($events as $event)<li><time>{{ $event->scheduled_on->format('d/m/Y') }}</time>{{ $event->title }} · {{ $event->status === 'processed' ? 'Processado' : 'Pendente' }}</li>@endforeach</ul>@endif</section>
-        <section class="panel" id="historico"><div class="panel-header"><h2>Histórico de temporadas</h2></div>@if($completedSeasons->isNotEmpty())<ul class="timeline">@foreach($completedSeasons as $completed)<li><time>{{ $completed->starts_on->format('d/m/Y') }} a {{ $completed->ended_on->format('d/m/Y') }}</time><strong>Temporada {{ $completed->number }}</strong><br>Campeão: {{ $completed->summary[0]['standings'][0]['name'] }}<br><a href="{{ route('careers.show',['career'=>$career,'season'=>$completed->number]) }}">Ver classificação, artilharia e jogos</a></li>@endforeach</ul>@else<p class="empty-state">A primeira temporada ainda está em andamento.</p>@endif</section>
-    </aside>
-</div>
+<nav class="career-mobile-nav" aria-label="Atalhos do dashboard"><a href="#main-content"><span>⌂</span>Resumo</a><a href="#elenco"><span>♟</span>Elenco</a><a href="#classificacao"><span>≡</span>Tabela</a><a href="{{ route('careers.stadium.show', $career) }}"><span>▰</span>Clube</a></nav>
 @endsection
