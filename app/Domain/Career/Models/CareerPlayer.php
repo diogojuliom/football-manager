@@ -9,7 +9,8 @@ class CareerPlayer extends Model
 {
     protected $guarded = ['id'];
 
-    protected $casts = ['secondary_positions' => 'array', 'injured_until' => 'immutable_date', 'suspended_matches' => 'integer'];
+    protected $casts = ['secondary_positions' => 'array', 'injured_until' => 'immutable_date', 'retired_on' => 'immutable_date',
+        'suspended_matches' => 'integer', 'joined_season_number' => 'integer'];
 
     public function isAvailableOn(\Carbon\CarbonInterface $date): bool
     {

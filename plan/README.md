@@ -2,7 +2,7 @@
 
 O [PRD original](PRD.md) foi preservado integralmente, conforme o texto enviado (versão 2.1, atualização de 15/10/2026).
 
-A pasta [entregas](entregas/) contém um arquivo Markdown para cada uma das 13 entregas da seção 17, mantendo a numeração, o escopo e os critérios de aceite originais. As Entregas 01 a 09 foram implementadas. A Entrega 00 permanece pendente em parte, pois o projeto atual usa Blade e não inclui Vue, TypeScript e Inertia; as Entregas 10 a 12 permanecem planejadas. O PRD original foi mantido intacto.
+A pasta [entregas](entregas/) contém um arquivo Markdown para cada uma das 13 entregas da seção 17, mantendo a numeração, o escopo e os critérios de aceite originais. As Entregas 01 a 10 foram implementadas e validadas. A Entrega 00 permanece pendente em parte, pois o projeto atual usa Blade e não inclui Vue, TypeScript e Inertia; as Entregas 11 e 12 permanecem planejadas. O PRD original foi mantido intacto.
 
 ## Entregas
 
@@ -18,7 +18,7 @@ A pasta [entregas](entregas/) contém um arquivo Markdown para cada uma das 13 e
 | 07 | [Estádios e torcida](entregas/entrega-07-estadios-e-torcida.md) | Implementada |
 | 08 | [Ingressos e finanças](entregas/entrega-08-ingressos-e-financas.md) | Implementada |
 | 09 | [Obras e infraestrutura](entregas/entrega-09-obras-e-infraestrutura.md) | Implementada |
-| 10 | [Temporadas consecutivas](entregas/entrega-10-temporadas-consecutivas.md) | Planejada |
+| 10 | [Temporadas consecutivas](entregas/entrega-10-temporadas-consecutivas.md) | Implementada e validada |
 | 11 | [Interface e experiência](entregas/entrega-11-interface-e-experiencia.md) | Planejada |
 | 12 | [Balanceamento e estabilização](entregas/entrega-12-balanceamento-e-estabilizacao.md) | Planejada |
 

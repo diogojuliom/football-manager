@@ -51,14 +51,30 @@
 @if($season->status === 'completed')
 <section class="card"><h2>Temporada encerrada</h2>
 <p>Encerramento esportivo em {{ $season->ended_on->format('d/m/Y') }}. Campeão: <strong>{{ $season->summary[0]['standings'][0]['name'] }}</strong>.</p>
-<p>Classificação e artilharia finais foram preservadas no histórico. A criação da próxima temporada será integrada na Entrega 10.</p></section>
+<p>Classificação, artilharia e resultados finais foram preservados. A próxima temporada só será criada após sua confirmação.</p>
+@if(!$pendingOperation)
+<form data-progression method="post" action="{{ route('careers.progression.store', $career) }}">
+    @csrf
+    <input type="hidden" name="request_id" value="{{ $requestId }}">
+    <input type="hidden" name="revision" value="{{ $career->progression_revision }}">
+    <button class="primary" name="action" value="START_NEXT_SEASON">Iniciar temporada {{ $career->current_season_number + 1 }}</button>
+</form>
+@endif
+</section>
+@endif
+@if($completedSeasons->isNotEmpty())
+<section class="card" aria-labelledby="season-history-title"><h2 id="season-history-title">Histórico de temporadas</h2>
+@foreach($completedSeasons as $completed)
+<p><strong>Temporada {{ $completed->number }}</strong> · {{ $completed->starts_on->format('d/m/Y') }} a {{ $completed->ended_on->format('d/m/Y') }} · Campeão: {{ $completed->summary[0]['standings'][0]['name'] }} · <a href="{{ route('careers.show', ['career' => $career, 'season' => $completed->number]) }}">Ver classificação, artilharia e jogos</a>.</p>
+@endforeach
+</section>
 @endif
 <p><a href="{{ route('careers.squad.edit', $career) }}">Gerenciar elenco e táticas</a></p>
 <p><a href="{{ route('careers.stadium.show', $career) }}">Estádio e histórico de público</a></p>
 <p><a href="{{ route('careers.tickets.index', $career) }}">Definir ingressos</a></p>
 <p><a href="{{ route('careers.finances.show', $career) }}">Painel financeiro</a></p>
 <p><a href="{{ route('careers.friendlies.create', $career) }}">Simular amistoso</a></p>
-<h2>Classificação — {{ $edition->name }}</h2>
+<h2>Classificação — {{ $edition->name }} — Temporada {{ $displaySeason->number }}</h2>
 <div class="table-scroll"><table><thead><tr><th>Posição</th><th>Clube</th><th>Pontos</th><th>Jogos</th><th>Vitórias</th><th>Empates</th><th>Derrotas</th><th>Gols pró</th><th>Gols contra</th><th>Saldo</th></tr></thead><tbody>
 @foreach($standings as $row)
 <tr><td>{{ $loop->iteration }}</td><td>{{ $row['name'] }}</td>@foreach(['points', 'played', 'wins', 'draws', 'losses', 'goals_for', 'goals_against', 'goal_difference'] as $field)<td>{{ $row[$field] }}</td>@endforeach</tr>
@@ -76,7 +92,7 @@
 <tr><td>{{ $player->name }}</td><td>{{ $player->primary_position }}</td><td>{{ $player->age }}</td><td>{{ $player->fitness }}</td><td>{{ $player->morale }}</td></tr>
 @endforeach
 </tbody></table></div>
-<h2>Calendário da liga</h2>
+<h2>Calendário da liga — Temporada {{ $displaySeason->number }}</h2>
 <div class="table-scroll"><table><thead><tr><th>Data</th><th>Rodada</th><th>Mandante</th><th>Visitante</th><th>Resultado</th></tr></thead><tbody>
 @foreach($matches as $match)
 <tr><td>{{ $match->scheduled_on->format('d/m/Y') }}</td><td>{{ $match->round }}</td><td>{{ $match->homeClub->name }}</td><td>{{ $match->awayClub->name }}</td><td>@if($match->result)<a href="{{ route('careers.results.show', [$career, $match->result]) }}">{{ $match->result->home_goals }} × {{ $match->result->away_goals }}</a>@else Agendada @endif</td></tr>

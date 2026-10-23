@@ -21,4 +21,4 @@ Escopo e critérios de aceite extraídos da seção 17 do [PRD original](../PRD.
 
 **Estado:** implementada. Projetos de ampliação e modernização são exclusivos do estádio de cada carreira, têm preço e prazo configuráveis, debitam o saldo ao iniciar e registram o investimento no livro financeiro. A conclusão acontece uma única vez durante a progressão autorizada do calendário interno, antes dos jogos da data, aplicando capacidade ou infraestrutura. A IA avalia investimentos no primeiro dia interno de cada mês, respeitando saldo, reserva financeira e obra ativa. A tela do estádio apresenta propostas, status e histórico.
 
-**Limite atual:** projetos cuja conclusão ultrapasse o encerramento da primeira temporada permanecem ativos; o avanço para a temporada seguinte depende da Entrega 10.
+Projetos cuja conclusão ultrapasse o encerramento de uma temporada permanecem ativos e são processados na continuidade confirmada pelo usuário, integrada na Entrega 10.

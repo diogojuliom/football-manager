@@ -96,6 +96,7 @@ class CreateCareer
                     $club->players()->create($player->only(['name', 'age', 'primary_position', 'secondary_positions', ...\App\Domain\GameDatabase\Models\PlayerTemplate::ATTRIBUTES]) + [
                         'career_id' => $career->id,
                         'player_template_id' => $player->id,
+                        'origin_key' => 'template:'.$player->id,
                         'fitness' => $player->initial_fitness,
                         'morale' => $player->initial_morale,
                     ]);

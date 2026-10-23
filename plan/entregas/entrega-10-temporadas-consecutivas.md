@@ -20,4 +20,4 @@ Implementar:
 
 Escopo e critérios de aceite extraídos da seção 17 do [PRD original](../PRD.md). Consultar também as regras detalhadas do PRD, o plano de testes (seção 18), os critérios de aceite do MVP (seção 19), os limites de escopo (seção 20) e a definição de pronto (seção 21).
 
-**Estado:** planejada; implementação não iniciada por esta organização documental.
+**Estado:** implementada e validada. O encerramento congela classificação, campeão, artilharia e resultados. A continuidade exige confirmação explícita e usa uma operação transacional retomável para criar a temporada, a edição, as inscrições e o calendário seguintes sem duplicidades. Clube, elenco, estádio, torcida, saldo, histórico financeiro e obras permanecem na carreira. Atletas envelhecem por uma política determinística versionada; evolução, declínio, aposentadoria aos 40 anos e reposição da base mantêm elencos válidos. O calendário não avança pelo tempo real.

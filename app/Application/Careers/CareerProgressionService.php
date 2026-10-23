@@ -35,9 +35,12 @@ class CareerProgressionService
 
     public const ACKNOWLEDGE_EVENT = 'ACKNOWLEDGE_EVENT';
 
+    public const START_NEXT_SEASON = 'START_NEXT_SEASON';
+
     public function __construct(private CareerCalendar $calendar, private TeamSnapshotFactory $snapshots,
         private PlayOfficialMatch $matches, private StandingsService $standings,
-        private MatchAttendanceService $attendance, private StadiumProjectService $projects) {}
+        private MatchAttendanceService $attendance, private StadiumProjectService $projects,
+        private SeasonTransitionService $seasons) {}
 
     public function execute(User $user, Career $career, array $input): CareerOperation
     {
@@ -51,7 +54,7 @@ class CareerProgressionService
     {
         Gate::forUser($user)->authorize('manageSquad', $career);
         $data = Validator::make($input, [
-            'action' => ['required', Rule::in([self::ADVANCE_ONE_DAY, self::ADVANCE_TO_NEXT_MATCH, self::ADVANCE_TO_NEXT_EVENT, self::PLAY_MATCH, self::ACKNOWLEDGE_EVENT])],
+            'action' => ['required', Rule::in([self::ADVANCE_ONE_DAY, self::ADVANCE_TO_NEXT_MATCH, self::ADVANCE_TO_NEXT_EVENT, self::PLAY_MATCH, self::ACKNOWLEDGE_EVENT, self::START_NEXT_SEASON])],
             'request_id' => ['required', 'uuid'], 'revision' => ['required', 'integer', 'min:0'],
             'match_id' => ['exclude_unless:action,PLAY_MATCH', 'required', 'integer'],
             'event_id' => ['exclude_unless:action,ACKNOWLEDGE_EVENT', 'required', 'integer'],
@@ -75,48 +78,57 @@ class CareerProgressionService
             if ($career->progression_revision !== (int) $data['revision']) {
                 $this->invalid('revision', 'A carreira mudou em outra aba. Recarregue a página antes de continuar.');
             }
-            if ($career->state === CareerState::AwaitingSeason) {
-                $this->invalid('progression', 'A temporada está encerrada. Consulte o histórico esportivo.');
-            }
-            $this->calendar->scheduleEnd($career);
-            $match = $this->calendar->nextMatch($career);
-            $decision = $this->calendar->decision($career);
             $target = $career->current_date;
             $stored = $data;
             $stored['engine_version'] = \App\Domain\Football\Engine\FootballMatchEngine::VERSION;
-            if ($data['action'] === self::ACKNOWLEDGE_EVENT) {
-                if (! $decision || $decision->id !== (int) $data['event_id'] || $decision->kind !== 'administrative_decision') {
-                    $this->invalid('event_id', 'Selecione o acontecimento administrativo pendente desta carreira.');
+            if ($data['action'] === self::START_NEXT_SEASON) {
+                $season = $this->calendar->season($career);
+                if ($career->state !== CareerState::AwaitingSeason || $season->status !== 'completed' || ! $season->ended_on) {
+                    $this->invalid('progression', 'Encerre a temporada atual antes de iniciar a próxima.');
                 }
+                $target = $season->ended_on->addDays((int) config('careers.offseason_days'));
+                $stored['next_season_number'] = $season->number + 1;
             } else {
-                if ($decision) {
-                    $this->invalid('progression', 'Confirme o acontecimento pendente antes de continuar.');
+                if ($career->state === CareerState::AwaitingSeason) {
+                    $this->invalid('progression', 'A temporada está encerrada. Confirme o início da próxima temporada.');
                 }
-                if ($data['action'] === self::PLAY_MATCH) {
-                    if (! $match || $match->id !== (int) $data['match_id'] || ! $match->scheduled_on->eq($career->current_date) || $career->state !== CareerState::PreMatch) {
-                        $this->invalid('match_id', 'Só é possível confirmar a próxima partida no pré-jogo da data atual.');
+                $this->calendar->scheduleEnd($career);
+                $match = $this->calendar->nextMatch($career);
+                $decision = $this->calendar->decision($career);
+                if ($data['action'] === self::ACKNOWLEDGE_EVENT) {
+                    if (! $decision || $decision->id !== (int) $data['event_id'] || $decision->kind !== 'administrative_decision') {
+                        $this->invalid('event_id', 'Selecione o acontecimento administrativo pendente desta carreira.');
                     }
-                    $human = $career->controlledClub->club;
-                    $opponent = $match->home_club_id === $human->id ? $match->awayClub : $match->homeClub;
-                    // Validate and freeze the user's final decisions before reserving the operation.
-                    $stored['human_team'] = $this->snapshots->make($career, $human, true, $opponent, $match->home_club_id === $human->id);
-                    $stored['human_attendance_plan'] = $this->attendance->forecast($career, $match->homeClub, $match->awayClub, $match);
                 } else {
-                    if ($match && $match->scheduled_on->lte($career->current_date)) {
-                        $this->invalid('progression', 'Jogue a partida pendente antes de avançar o calendário.');
+                    if ($decision) {
+                        $this->invalid('progression', 'Confirme o acontecimento pendente antes de continuar.');
                     }
-                    $event = $this->calendar->nextEvent($career);
-                    $due = $data['action'] === self::ADVANCE_TO_NEXT_EVENT
-                        ? StadiumProject::where('career_id', $career->id)->where('career_club_id', $career->controlledClub->career_club_id)->where('status', 'active')
-                            ->where('due_on', '>=', $career->current_date->toDateString())->min('due_on')
-                        : null;
-                    $target = match ($data['action']) {
-                        self::ADVANCE_ONE_DAY => $career->current_date->addDay(),
-                        self::ADVANCE_TO_NEXT_MATCH => $match?->scheduled_on ?? $event?->scheduled_on,
-                        self::ADVANCE_TO_NEXT_EVENT => $this->earliest($this->earliest($match?->scheduled_on, $event?->scheduled_on), $due ? CarbonImmutable::parse($due) : null),
-                    };
-                    if (! $target || $target->lt($career->current_date) || $career->current_date->diffInDays($target) > 3660) {
-                        $this->invalid('progression', 'Não há um destino válido no calendário desta temporada.');
+                    if ($data['action'] === self::PLAY_MATCH) {
+                        if (! $match || $match->id !== (int) $data['match_id'] || ! $match->scheduled_on->eq($career->current_date) || $career->state !== CareerState::PreMatch) {
+                            $this->invalid('match_id', 'Só é possível confirmar a próxima partida no pré-jogo da data atual.');
+                        }
+                        $human = $career->controlledClub->club;
+                        $opponent = $match->home_club_id === $human->id ? $match->awayClub : $match->homeClub;
+                        // Validate and freeze the user's final decisions before reserving the operation.
+                        $stored['human_team'] = $this->snapshots->make($career, $human, true, $opponent, $match->home_club_id === $human->id);
+                        $stored['human_attendance_plan'] = $this->attendance->forecast($career, $match->homeClub, $match->awayClub, $match);
+                    } else {
+                        if ($match && $match->scheduled_on->lte($career->current_date)) {
+                            $this->invalid('progression', 'Jogue a partida pendente antes de avançar o calendário.');
+                        }
+                        $event = $this->calendar->nextEvent($career);
+                        $due = $data['action'] === self::ADVANCE_TO_NEXT_EVENT
+                            ? StadiumProject::where('career_id', $career->id)->where('career_club_id', $career->controlledClub->career_club_id)->where('status', 'active')
+                                ->where('due_on', '>=', $career->current_date->toDateString())->min('due_on')
+                            : null;
+                        $target = match ($data['action']) {
+                            self::ADVANCE_ONE_DAY => $career->current_date->addDay(),
+                            self::ADVANCE_TO_NEXT_MATCH => $match?->scheduled_on ?? $event?->scheduled_on,
+                            self::ADVANCE_TO_NEXT_EVENT => $this->earliest($this->earliest($match?->scheduled_on, $event?->scheduled_on), $due ? CarbonImmutable::parse($due) : null),
+                        };
+                        if (! $target || $target->lt($career->current_date) || $career->current_date->diffInDays($target) > 3660) {
+                            $this->invalid('progression', 'Não há um destino válido no calendário desta temporada.');
+                        }
                     }
                 }
             }
@@ -149,7 +161,9 @@ class CareerProgressionService
             }
             $played = [];
             $nextState = CareerState::AwaitingDecision;
-            if ($operation->kind === self::PLAY_MATCH) {
+            if ($operation->kind === self::START_NEXT_SEASON) {
+                $this->seasons->execute($career);
+            } elseif ($operation->kind === self::PLAY_MATCH) {
                 foreach ($career->matches()->where('status', 'scheduled')->onDate($career->current_date)->orderBy('id')->get() as $match) {
                     $played[] = $this->matches->execute($career, $match, $operation)->match_id;
                 }
@@ -221,7 +235,7 @@ class CareerProgressionService
         ]);
         $amount = max(0, min(100, (int) config('careers.daily_fitness_recovery', 8)));
         if ($amount > 0) {
-            $career->players()->where('fitness', '<', 100)
+            $career->players()->whereNull('retired_on')->where('fitness', '<', 100)
                 ->where(fn ($q) => $q->whereNull('injured_until')->orWhere('injured_until', '<', $career->current_date->toDateString()))
                 ->update(['fitness' => DB::raw("CASE WHEN fitness + {$amount} > 100 THEN 100 ELSE fitness + {$amount} END")]);
         }

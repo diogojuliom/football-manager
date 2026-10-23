@@ -39,22 +39,29 @@ class CareerController extends Controller
         return redirect()->route('careers.show', $career);
     }
 
-    public function show(Career $career, CareerCalendar $calendar, StandingsService $tables)
+    public function show(Request $request, Career $career, CareerCalendar $calendar, StandingsService $tables)
     {
         $this->authorize('view', $career);
         $career->load(['version', 'controlledClub.club.stadium', 'controlledClub.club.support', 'controlledClub.club.players', 'seasons']);
-        $matches = $career->matches()->with(['homeClub', 'awayClub', 'result:id,match_id,home_goals,away_goals'])->orderBy('scheduled_on')->orderBy('id')->paginate(10);
         $season = $calendar->season($career);
-        $edition = CompetitionEdition::where('career_id', $career->id)->where('career_season_id', $season->id)->sole();
-        $standings = $season->status === 'completed' ? $season->summary[0]['standings'] : $tables->standings($edition);
-        $scorers = $season->status === 'completed' ? $season->summary[0]['scorers'] : $tables->scorers($edition);
+        $requestedSeason = $request->query('season');
+        abort_if($requestedSeason !== null && (! is_string($requestedSeason) || ! ctype_digit($requestedSeason)), 404);
+        $displaySeason = $requestedSeason === null ? $season : $career->seasons->firstWhere('number', (int) $requestedSeason);
+        abort_unless($displaySeason, 404);
+        $edition = CompetitionEdition::where('career_id', $career->id)->where('career_season_id', $displaySeason->id)->sole();
+        $matches = $career->matches()->where('competition_edition_id', $edition->id)
+            ->with(['homeClub', 'awayClub', 'result:id,match_id,home_goals,away_goals'])
+            ->orderBy('scheduled_on')->orderBy('id')->paginate(10)->withQueryString();
+        $standings = $displaySeason->status === 'completed' ? $displaySeason->summary[0]['standings'] : $tables->standings($edition);
+        $scorers = $displaySeason->status === 'completed' ? $displaySeason->summary[0]['scorers'] : $tables->scorers($edition);
         $nextMatch = $calendar->nextMatch($career);
         $nextEvent = $calendar->nextEvent($career);
         $decision = $calendar->decision($career);
         $pendingOperation = CareerOperation::where('career_id', $career->id)->where('status', 'pending')->first();
         $events = CareerEvent::where('career_id', $career->id)->orderByDesc('scheduled_on')->orderByDesc('id')->take(10)->get();
+        $completedSeasons = $career->seasons->where('status', 'completed')->sortByDesc('number');
         $requestId = (string) Str::uuid();
 
-        return view('careers.show', compact('career', 'matches', 'season', 'edition', 'standings', 'scorers', 'nextMatch', 'nextEvent', 'decision', 'pendingOperation', 'events', 'requestId'));
+        return view('careers.show', compact('career', 'matches', 'season', 'displaySeason', 'edition', 'standings', 'scorers', 'nextMatch', 'nextEvent', 'decision', 'pendingOperation', 'events', 'completedSeasons', 'requestId'));
     }
 }

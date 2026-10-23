@@ -9,7 +9,7 @@ class CareerSeason extends Model
 {
     protected $guarded = ['id'];
 
-    protected $casts = ['starts_on' => 'immutable_date', 'ended_on' => 'immutable_date', 'summary' => 'array'];
+    protected $casts = ['starts_on' => 'immutable_date', 'ended_on' => 'immutable_date', 'summary' => 'array', 'transition_summary' => 'array'];
 
     public function career(): BelongsTo
     {

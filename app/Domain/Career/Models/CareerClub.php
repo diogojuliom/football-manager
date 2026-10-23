@@ -25,6 +25,11 @@ class CareerClub extends Model
 
     public function players(): HasMany
     {
+        return $this->hasMany(CareerPlayer::class)->whereNull('retired_on');
+    }
+
+    public function allPlayers(): HasMany
+    {
         return $this->hasMany(CareerPlayer::class);
     }
 
