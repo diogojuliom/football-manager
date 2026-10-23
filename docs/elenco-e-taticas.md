@@ -6,7 +6,7 @@ Com as dependências instaladas e a conexão de desenvolvimento configurada, exe
 
 Abra uma carreira e siga **Gerenciar elenco e táticas**. A tela apresenta todos os jogadores do clube humano, suas posições principais/secundárias, idade, condição física, moral, disponibilidade e os 11 atributos do RF05.
 
-Escolha uma formação, selecione os titulares e as reservas e configure mentalidade, pressão, ritmo e construção de jogadas. O campo tático mostra a distribuição dos onze titulares e atualiza os nomes conforme a seleção. O botão **Salvar escalação e táticas** confirma o conjunto inteiro na mesma transação. A seleção permanece após logout/login.
+Escolha uma formação, selecione os titulares e as reservas e configure mentalidade, pressão, ritmo e construção de jogadas. O campo tático em SVG mostra a distribuição dos onze titulares e atualiza os nomes e a condição física conforme a seleção. Alterar o seletor de formação atualiza imediatamente a prévia e seus índices; **Aplicar formação** recarrega a sugestão de atletas para o esquema escolhido. O botão **Salvar escalação e táticas** confirma o conjunto inteiro na mesma transação. A seleção permanece após logout/login.
 
 Abrir a tela não grava nada. Quando ainda não existe uma escalação salva, é apresentada uma sugestão baseada nas posições dos atletas disponíveis, sujeita à confirmação do usuário. Trocar a formação prepara outra sugestão e descarta alterações ainda não salvas no formulário, sem modificar o que está persistido.
 
@@ -37,6 +37,10 @@ Abrir a tela não grava nada. Quando ainda não existe uma escalação salva, é
 | 3-6-1 | GK, CB, CB, CB, LW, DM, CM, CM, AM, RW, ST |
 
 LW/RW representam também os jogadores abertos do meio-campo nas formações 4-4-2 e 3-5-2. Um jogador de linha pode ser colocado fora de suas posições principal/secundárias, com aviso visível. Um goleiro deve ocupar a primeira vaga; as outras dez exigem jogadores de linha.
+
+As interfaces exibem siglas em português (`GOL`, `ZAG`, `LE`, `LD`, `VOL`, `MC`, `MEI`, `PE`, `PD` e `ATA`). Os identificadores internos em inglês continuam sendo usados no banco, na IA e no motor para manter compatibilidade com carreiras e partidas existentes.
+
+`Tactics::frontendModel()` é o contrato versionado do campo: reúne as mesmas formações consumidas pelo motor e pela IA, os papéis internos, rótulos traduzidos, perfis e coordenadas normalizadas de 0 a 100. A interação está explicitamente no modo `fixed`, com `draggable` e `swappable` desabilitados. Os marcadores já carregam vaga, atleta, papel e coordenadas em atributos de dados para uma integração futura com Interact.js, sem instalar ou ativar arraste nesta etapa.
 
 | Campo persistido | Opções |
 | --- | --- |

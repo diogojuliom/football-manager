@@ -74,6 +74,15 @@ class SquadTest extends TestCase
             ->assertSee('Distribuição em campo')
             ->assertSee('data-pitch-player="0"', false)
             ->assertSee('data-starter-select="0"', false)
+            ->assertSee('data-tactical-board', false)
+            ->assertSee('data-tactical-model', false)
+            ->assertSee('data-interaction-mode="fixed"', false)
+            ->assertSee('data-draggable="false"', false)
+            ->assertSee('<svg class="tactical-pitch-svg"', false)
+            ->assertSee('GOL')
+            ->assertSee('ZAG')
+            ->assertSee('Aplicar formação')
+            ->assertDontSee('draggable="true"', false)
             ->assertSee('Tendências da formação');
         foreach (Tactics::FORMATIONS as $formation => $positions) {
             $this->assertCount(11, $positions);

@@ -88,7 +88,7 @@
 
         <section class="career-dashboard-card career-squad-card" id="elenco">
             <header><div><h2>Elenco principal</h2><p>Condição física dos atletas</p></div><a href="{{ route('careers.squad.edit', $career) }}">Gerenciar táticas</a></header>
-            <div class="career-player-grid">@foreach($topPlayers as $player)<article><span class="career-position">{{ $player->primary_position }}</span><div><strong>{{ $player->name }}</strong><span><i style="width: {{ $player->fitness }}%"></i></span></div><b>{{ $player->fitness }}%</b></article>@endforeach</div>
+            <div class="career-player-grid">@foreach($topPlayers as $player)<article><span class="career-position" title="{{ \App\Domain\Tactics\Tactics::positionName($player->primary_position) }}">{{ \App\Domain\Tactics\Tactics::positionLabel($player->primary_position) }}</span><div><strong>{{ $player->name }}</strong><span><i style="width: {{ $player->fitness }}%"></i></span></div><b>{{ $player->fitness }}%</b></article>@endforeach</div>
         </section>
 
         <section class="career-dashboard-card career-scorers-card" id="estatisticas">

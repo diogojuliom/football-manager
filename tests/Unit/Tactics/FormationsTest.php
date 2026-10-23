@@ -32,6 +32,8 @@ class FormationsTest extends TestCase
             $this->assertCount(11, $slots, $formation);
             foreach ($slots as $slot => $position) {
                 $this->assertSame($roles[$slot], $position['role']);
+                $this->assertSame(Tactics::POSITION_LABELS[$roles[$slot]], $position['label']);
+                $this->assertSame(Tactics::POSITION_NAMES[$roles[$slot]], $position['name']);
                 $this->assertGreaterThanOrEqual(0, $position['x']);
                 $this->assertLessThanOrEqual(100, $position['x']);
                 $this->assertGreaterThanOrEqual(0, $position['y']);
@@ -40,6 +42,45 @@ class FormationsTest extends TestCase
             foreach (['attack', 'defense', 'control'] as $dimension) {
                 $this->assertGreaterThanOrEqual(0.85, Tactics::PROFILES[$formation][$dimension]);
                 $this->assertLessThanOrEqual(1.15, Tactics::PROFILES[$formation][$dimension]);
+            }
+        }
+    }
+
+    public function test_frontend_model_preserves_internal_roles_and_exposes_portuguese_labels(): void
+    {
+        $expectedLabels = [
+            'GK' => 'GOL', 'CB' => 'ZAG', 'LB' => 'LE', 'RB' => 'LD', 'DM' => 'VOL',
+            'CM' => 'MC', 'AM' => 'MEI', 'LW' => 'PE', 'RW' => 'PD', 'ST' => 'ATA',
+        ];
+        $expectedNames = [
+            'GK' => 'Goleiro', 'CB' => 'Zagueiro', 'LB' => 'Lateral esquerdo', 'RB' => 'Lateral direito',
+            'DM' => 'Volante', 'CM' => 'Meio-campista central', 'AM' => 'Meia ofensivo',
+            'LW' => 'Ponta esquerda', 'RW' => 'Ponta direita', 'ST' => 'Atacante',
+        ];
+
+        $this->assertSame($expectedLabels, Tactics::POSITION_LABELS);
+        $this->assertSame($expectedNames, Tactics::POSITION_NAMES);
+        $this->assertSame('XX', Tactics::positionLabel('XX'));
+        $this->assertSame('XX', Tactics::positionName('XX'));
+
+        $model = Tactics::frontendModel();
+        $this->assertSame(Tactics::MODEL_VERSION, $model['version']);
+        $this->assertSame(['unit' => 'percent', 'min' => 0, 'max' => 100, 'origin' => 'top-left'], $model['coordinateSystem']);
+        $this->assertSame(['mode' => 'fixed', 'draggable' => false, 'swappable' => false], $model['interaction']);
+        $this->assertSame(self::EXPECTED, array_keys($model['formations']));
+
+        foreach ($expectedLabels as $role => $label) {
+            $this->assertSame(['label' => $label, 'name' => $expectedNames[$role]], $model['positions'][$role]);
+        }
+
+        foreach ($model['formations'] as $formation => $definition) {
+            $this->assertSame($formation, $definition['id']);
+            $this->assertSame(Tactics::PROFILES[$formation], $definition['profile']);
+            $this->assertCount(11, $definition['slots']);
+
+            foreach ($definition['slots'] as $slot => $position) {
+                $this->assertSame(Tactics::FORMATIONS[$formation][$slot], $position['role']);
+                $this->assertSame($expectedLabels[$position['role']], $position['label']);
             }
         }
     }

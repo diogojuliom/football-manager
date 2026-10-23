@@ -2,6 +2,7 @@
 
 namespace App\Domain\GameDatabase\Models;
 
+use App\Domain\Tactics\Tactics;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Validation\Rule;
 
@@ -9,7 +10,7 @@ class PlayerTemplate extends Template
 {
     public const ATTRIBUTES = ['defense', 'tackling', 'passing', 'creativity', 'finishing', 'speed', 'stamina', 'discipline', 'composure', 'set_pieces', 'goalkeeping'];
 
-    public const POSITIONS = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'];
+    public const POSITIONS = Tactics::POSITIONS;
 
     protected $casts = ['secondary_positions' => 'array'];
 

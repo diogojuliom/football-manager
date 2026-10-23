@@ -4,7 +4,21 @@ namespace App\Domain\Tactics;
 
 class Tactics
 {
+    public const MODEL_VERSION = '1.0.0';
+
     public const POSITIONS = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'];
+
+    /** Labels shown to players. Internal identifiers remain in English. */
+    public const POSITION_LABELS = [
+        'GK' => 'GOL', 'CB' => 'ZAG', 'LB' => 'LE', 'RB' => 'LD', 'DM' => 'VOL',
+        'CM' => 'MC', 'AM' => 'MEI', 'LW' => 'PE', 'RW' => 'PD', 'ST' => 'ATA',
+    ];
+
+    public const POSITION_NAMES = [
+        'GK' => 'Goleiro', 'CB' => 'Zagueiro', 'LB' => 'Lateral esquerdo', 'RB' => 'Lateral direito',
+        'DM' => 'Volante', 'CM' => 'Meio-campista central', 'AM' => 'Meia ofensivo',
+        'LW' => 'Ponta esquerda', 'RW' => 'Ponta direita', 'ST' => 'Atacante',
+    ];
 
     public const FORMATIONS = [
         '4-4-2' => ['GK', 'LB', 'CB', 'CB', 'RB', 'LW', 'CM', 'CM', 'RW', 'ST', 'ST'],
@@ -98,9 +112,64 @@ class Tactics
     public static function slots(string $formation): array
     {
         return array_map(
-            fn (string $role, array $coordinates): array => ['role' => $role, 'x' => $coordinates[0], 'y' => $coordinates[1]],
+            fn (string $role, array $coordinates): array => [
+                'role' => $role,
+                'label' => self::positionLabel($role),
+                'name' => self::positionName($role),
+                'x' => $coordinates[0],
+                'y' => $coordinates[1],
+            ],
             self::FORMATIONS[$formation],
             self::SHAPES[$formation],
         );
+    }
+
+    public static function positionLabel(string $position): string
+    {
+        return self::POSITION_LABELS[$position] ?? $position;
+    }
+
+    public static function positionName(string $position): string
+    {
+        return self::POSITION_NAMES[$position] ?? $position;
+    }
+
+    public static function formationModel(string $formation): array
+    {
+        return [
+            'id' => $formation,
+            'slots' => self::slots($formation),
+            'profile' => self::PROFILES[$formation],
+        ];
+    }
+
+    /**
+     * Serializable contract shared with the tactical board. Coordinates are
+     * normalized now so free positioning can be added without changing shape data.
+     */
+    public static function frontendModel(): array
+    {
+        $positions = [];
+
+        foreach (self::POSITIONS as $position) {
+            $positions[$position] = [
+                'label' => self::positionLabel($position),
+                'name' => self::positionName($position),
+            ];
+        }
+
+        $formations = [];
+
+        foreach (array_keys(self::FORMATIONS) as $formation) {
+            $formations[$formation] = self::formationModel($formation);
+        }
+
+        return [
+            'version' => self::MODEL_VERSION,
+            'coordinateSystem' => ['unit' => 'percent', 'min' => 0, 'max' => 100, 'origin' => 'top-left'],
+            'interaction' => ['mode' => 'fixed', 'draggable' => false, 'swappable' => false],
+            'positions' => $positions,
+            'formations' => $formations,
+        ];
     }
 }
