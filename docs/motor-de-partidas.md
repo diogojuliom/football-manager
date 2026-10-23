@@ -14,7 +14,7 @@ Os amistosos são simulações de treinamento: não avançam o calendário, não
 
 ```php
 $result = (new FootballMatchEngine)->simulate([
-    'engine_version' => '2.0.0',
+    'engine_version' => '3.0.0',
     'seed' => 'partida-001',
     'home' => $homeSnapshot,
     'away' => $awaySnapshot,
@@ -33,7 +33,7 @@ A primeira vaga exige goleiro e as demais exigem jogadores de linha. O adaptador
 
 ## Versão e reprodução
 
-A primeira versão está em `Engine/V1/Simulation.php` e permanece suportada explicitamente como `1.0.0`. A versão atual é `2.0.0`, em `Engine/V2/Simulation.php`, com as decisões adaptativas da Entrega 05. Em V2, cada equipe informa `controller=human|ai` (padrão `human`), e a IA usa `ai_policy_version=1.0.0`. A mesma entrada normalizada, seed e versão produz o mesmo resultado. `SeededRandom` gera uma sequência local por SHA-256 de seed e contador, sem afetar outros sorteios do processo. A seed aceita de 1 a 64 letras ASCII, números, hífens ou sublinhados.
+As versões `1.0.0` e `2.0.0` permanecem suportadas para reproduzir partidas históricas. A versão atual é `3.0.0`, em `Engine/V3/Simulation.php`, e acrescenta perfis próprios de ataque, defesa e controle para cada formação. Em V2 e V3, cada equipe informa `controller=human|ai` (padrão `human`), e a IA usa `ai_policy_version=1.0.0`. A mesma entrada normalizada, seed e versão produz o mesmo resultado. `SeededRandom` gera uma sequência local por SHA-256 de seed e contador, sem afetar outros sorteios do processo. A seed aceita de 1 a 64 letras ASCII, números, hífens ou sublinhados.
 
 Cada versão possui uma fixture de referência com hash de resultado fixo em teste, protegendo contra mudanças silenciosas na versão publicada. Alterações futuras nas regras/coeficientes exigem uma versão nova e manutenção da implementação anterior e das políticas de IA para reproduzir seus snapshots. Versões desconhecidas são rejeitadas.
 
@@ -47,14 +47,14 @@ $valid = ReplayHash::of($replayed) === $simulation->result_checksum;
 ## Regras esportivas iniciais
 
 - Simulação cronológica de 90 minutos, com uma disputa de posse e construção de jogada por minuto. O placar vem dos gols gerados pelas finalizações; não há sorteio direto de placar.
-- Força ofensiva, defensiva e controle consideram os atributos individuais, a função na formação, condição física e moral.
+- Força ofensiva, defensiva e controle consideram os atributos individuais, a função na formação, condição física, moral e, na V3, o perfil do esquema escolhido.
 - Posição principal recebe fator integral, secundária 0,95 e atuação fora da posição 0,78.
 - Mentalidade altera o compromisso entre ataque e defesa; passes curtos favorecem controle, jogo direto favorece ataque; ritmo e pressão alteram disputas e desgaste.
 - Uma oportunidade pode gerar finalização, xG, acerto no alvo, gol ou defesa. Assistências são ligadas ao autor do gol. xG é acumulado em milésimos inteiros.
 - Faltas podem gerar amarelos, segundo amarelo ou expulsão direta. Expulsos não voltam a atuar; a redução de atletas afeta as forças da equipe.
 - Abaixo de sete jogadores, a simulação termina com `status=abandoned` e placar até a interrupção, sem inventar um resultado administrativo.
 - Condição física diminui conforme minutos jogados, resistência, ritmo, pressão e função. Reservas não utilizadas não sofrem desgaste.
-- Na V1 e para equipes humanas na V2, substituições automáticas priorizam jogadores de linha mais desgastados e reservas compatíveis com a função. O padrão é até três mudanças nas janelas 60/70/80; a entrada pode definir de zero a cinco, usando 55/60/65/70/80 quando o limite supera três. Não há reentrada de substituídos. Na V2, a IA considera desgaste, cartões, placar e qualidade, respeitando o limite de trocas e intervalo mínimo de dez minutos.
+- Na V1 e para equipes humanas na V2/V3, substituições automáticas priorizam jogadores de linha mais desgastados e reservas compatíveis com a função. O padrão é até três mudanças nas janelas 60/70/80; a entrada pode definir de zero a cinco, usando 55/60/65/70/80 quando o limite supera três. Não há reentrada de substituídos. Na V2/V3, a IA considera desgaste, cartões, placar e qualidade, respeitando o limite de trocas e intervalo mínimo de dez minutos.
 
 As regras são uma base funcional testada, sujeita ao balanceamento da Entrega 12. Os testes de distribuição não demonstram equilíbrio econômico/esportivo final.
 
@@ -82,7 +82,7 @@ As tabelas oficiais `matches` continuam como calendário da liga. A Entrega 06 r
 DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan test
 ```
 
-A suíte completa, incluindo a Entrega 05, passou com **92 testes em SQLite**. Os **72 testes funcionais** também passaram em MySQL 8.0.46, incluindo o replay V1/V2 após ida e volta pelo JSON do banco. A Entrega 04 introduziu 9 testes puros do motor e 10 testes de amistosos; a Entrega 05 acrescentou 18 testes de IA e integração.
+A suíte completa passou com **162 testes e 334.912 asserções em SQLite**, incluindo replays V1/V2, motor V3, todas as formações e três temporadas consecutivas. As validações anteriores em MySQL também cobrem a ida e volta dos snapshots pelo JSON do banco.
 
 Os testes do motor incluem 100 seeds com reconciliação detalhada de eventos/estatísticas e **2.000 partidas sintéticas**: 1.000 entre equipes equivalentes, 250 com mandante muito superior, 250 com visitante muito superior, 250 com esforço alto e 250 com mandante exausto. Verificam diversidade de placares, empates, jogos sem gols, jogos com cinco ou mais gols, vantagem técnica, desgaste e limites estatísticos. Também há cenários com atributos extremos, nenhuma reserva, limites de substituição, mando/torcida, entradas inválidas, referência de replay e abandono por expulsões.
 

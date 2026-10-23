@@ -12,7 +12,7 @@ final class MatchInput
     public function __construct(array $data)
     {
         $version = $data['engine_version'] ?? FootballMatchEngine::VERSION;
-        if (! in_array($version, [V1\Simulation::VERSION, V2\Simulation::VERSION], true)) {
+        if (! in_array($version, [V1\Simulation::VERSION, V2\Simulation::VERSION, V3\Simulation::VERSION], true)) {
             throw new InvalidArgumentException('Versão do motor não suportada.');
         }
         if (! is_string($data['seed'] ?? null) || ! preg_match('/^[a-zA-Z0-9_-]{1,64}$/D', $data['seed'])) {
@@ -50,13 +50,13 @@ final class MatchInput
                 foreach ($team[$unit] as $slot => $player) {
                     if (! is_array($player) || ! is_string($player['id'] ?? null) || ! preg_match('/^[a-zA-Z0-9_-]{1,64}$/D', $player['id']) || isset($ids[$player['id']])
                         || ! is_string($player['name'] ?? null) || trim($player['name']) === '' || strlen($player['name']) > 255
-                        || ! in_array($player['primary_position'] ?? null, ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'], true)
+                        || ! in_array($player['primary_position'] ?? null, Tactics::POSITIONS, true)
                         || ! is_array($player['secondary_positions'] ?? null) || ($player['available'] ?? true) !== true) {
                         throw new InvalidArgumentException('Atleta inválido, duplicado ou indisponível.');
                     }
                     // Keep the engine independent of Eloquent classes; position codes are domain constants.
                     foreach ($player['secondary_positions'] as $position) {
-                        if (! is_string($position) || ! in_array($position, ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'], true)) {
+                        if (! is_string($position) || ! in_array($position, Tactics::POSITIONS, true)) {
                             throw new InvalidArgumentException('Posição secundária inválida.');
                         }
                     }
@@ -76,7 +76,7 @@ final class MatchInput
                     $team[$unit][$slot] = array_intersect_key($player, array_flip(['id', 'name', 'primary_position', 'secondary_positions', ...array_keys(Tactics::ATTRIBUTES), 'fitness', 'morale', 'available']));
                 }
             }
-            if ($version === V2\Simulation::VERSION) {
+            if (in_array($version, [V2\Simulation::VERSION, V3\Simulation::VERSION], true)) {
                 $controller = $team['controller'] ?? 'human';
                 if (! in_array($controller, ['human', 'ai'], true)
                     || ($controller === 'ai' && ($team['ai_policy_version'] ?? \App\Domain\AI\V1\MatchDecisions::VERSION) !== \App\Domain\AI\V1\MatchDecisions::VERSION)) {

@@ -79,7 +79,7 @@ A Entrega 02 permite cadastrar uma conta, criar carreiras independentes e retoma
 
 ## Elenco e táticas
 
-A Entrega 03 permite selecionar titulares e reservas nas quatro formações iniciais e salvar as configurações táticas de cada carreira. Consulte [a documentação de elenco e táticas](docs/elenco-e-taticas.md) para conhecer as regras, a disponibilidade dos atletas e a proteção contra alterações concorrentes.
+A Entrega 03 permite selecionar titulares e reservas em 21 formações e salvar as configurações táticas de cada carreira. Consulte [a documentação de elenco e táticas](docs/elenco-e-taticas.md) para conhecer as regras, a disponibilidade dos atletas e a proteção contra alterações concorrentes.
 
 
 ## Motor de partidas

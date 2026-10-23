@@ -21,7 +21,7 @@ class ClubAiTest extends TestCase
         return [...$fixture['home']['starters'], ...$fixture['home']['substitutes']];
     }
 
-    public function test_planner_selects_each_formation_when_its_positions_are_best_covered(): void
+    public function test_planner_can_build_each_supported_formation_with_optimal_role_coverage(): void
     {
         $fixture = MatchFixture::make();
         foreach (Tactics::FORMATIONS as $formation => $roles) {
@@ -29,12 +29,30 @@ class ClubAiTest extends TestCase
             foreach ($roles as $slot => $role) {
                 $roster[$slot]['primary_position'] = $role;
             }
-            $plan = (new LineupPlanner)->plan($roster, $this->roster(), 0);
+            $plan = (new LineupPlanner)->plan($roster, $this->roster(), 0, false, $formation);
             $this->assertSame($formation, $plan['tactics']['formation']);
             $this->assertCount(11, $plan['starters']);
             foreach ($roles as $slot => $role) {
                 $this->assertSame($role, $plan['starters'][$slot]['primary_position']);
             }
+        }
+    }
+
+    public function test_planner_adapts_the_formation_to_strength_and_home_context(): void
+    {
+        $planner = new LineupPlanner;
+        $scenarios = [
+            [90, 40, true, '4-2-4'],
+            [40, 90, false, '5-4-1'],
+            [65, 65, true, '3-5-2'],
+            [65, 65, false, '4-1-4-1'],
+        ];
+
+        foreach ($scenarios as [$ownStrength, $opponentStrength, $home, $expected]) {
+            $fixture = MatchFixture::make('formation-context-'.$ownStrength.'-'.$opponentStrength.'-'.(int) $home, $ownStrength, $opponentStrength);
+            $roster = [...$fixture['home']['starters'], ...$fixture['home']['substitutes']];
+            $opponent = [...$fixture['away']['starters'], ...$fixture['away']['substitutes']];
+            $this->assertSame($expected, $planner->plan($roster, $opponent, 7, $home)['tactics']['formation']);
         }
     }
 
@@ -184,7 +202,7 @@ class ClubAiTest extends TestCase
         $this->assertSame('26814de60f08eb15e0b44314f48d11d4431911e79432d338e3127a57080d2900', ReplayHash::of($legacy));
         unset($input['engine_version']);
         $result = (new FootballMatchEngine)->simulate($input);
-        $this->assertSame('2.0.0', $result['engine_version']);
+        $this->assertSame('3.0.0', $result['engine_version']);
         $this->assertSame($input['home']['tactics'], $result['home']['final_tactics']);
         $this->assertCount(0, array_filter($result['events'], fn ($event) => $event['type'] === 'tactical_change'));
         $input['home']['controller'] = 'ai';

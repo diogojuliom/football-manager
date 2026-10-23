@@ -6,7 +6,7 @@ Com as dependências instaladas e a conexão de desenvolvimento configurada, exe
 
 Abra uma carreira e siga **Gerenciar elenco e táticas**. A tela apresenta todos os jogadores do clube humano, suas posições principais/secundárias, idade, condição física, moral, disponibilidade e os 11 atributos do RF05.
 
-Escolha uma formação, selecione os titulares e as reservas e configure mentalidade, pressão, ritmo e construção de jogadas. O botão **Salvar escalação e táticas** confirma o conjunto inteiro na mesma transação. A seleção permanece após logout/login.
+Escolha uma formação, selecione os titulares e as reservas e configure mentalidade, pressão, ritmo e construção de jogadas. O campo tático mostra a distribuição dos onze titulares e atualiza os nomes conforme a seleção. O botão **Salvar escalação e táticas** confirma o conjunto inteiro na mesma transação. A seleção permanece após logout/login.
 
 Abrir a tela não grava nada. Quando ainda não existe uma escalação salva, é apresentada uma sugestão baseada nas posições dos atletas disponíveis, sujeita à confirmação do usuário. Trocar a formação prepara outra sugestão e descarta alterações ainda não salvas no formulário, sem modificar o que está persistido.
 
@@ -18,6 +18,23 @@ Abrir a tela não grava nada. Quando ainda não existe uma escalação salva, é
 | 4-3-3 | GK, LB, CB, CB, RB, DM, CM, CM, LW, ST, RW |
 | 4-2-3-1 | GK, LB, CB, CB, RB, DM, DM, LW, AM, RW, ST |
 | 3-5-2 | GK, CB, CB, CB, LW, CM, DM, CM, RW, ST, ST |
+| 4-1-4-1 | GK, LB, CB, CB, RB, DM, LW, CM, CM, RW, ST |
+| 4-5-1 | GK, LB, CB, CB, RB, LW, CM, CM, CM, RW, ST |
+| 4-4-1-1 | GK, LB, CB, CB, RB, LW, CM, CM, RW, AM, ST |
+| 4-2-2-2 | GK, LB, CB, CB, RB, DM, DM, AM, AM, ST, ST |
+| 4-1-2-1-2 | GK, LB, CB, CB, RB, DM, CM, CM, AM, ST, ST |
+| 4-3-1-2 | GK, LB, CB, CB, RB, CM, CM, CM, AM, ST, ST |
+| 4-3-2-1 | GK, LB, CB, CB, RB, CM, CM, CM, AM, AM, ST |
+| 4-2-4 | GK, LB, CB, CB, RB, CM, CM, LW, ST, ST, RW |
+| 4-1-3-2 | GK, LB, CB, CB, RB, DM, LW, CM, RW, ST, ST |
+| 3-4-3 | GK, CB, CB, CB, LW, CM, CM, RW, LW, ST, RW |
+| 3-4-2-1 | GK, CB, CB, CB, LW, CM, CM, RW, AM, AM, ST |
+| 3-4-1-2 | GK, CB, CB, CB, LW, CM, CM, RW, AM, ST, ST |
+| 3-5-1-1 | GK, CB, CB, CB, LW, CM, DM, CM, RW, AM, ST |
+| 5-3-2 | GK, LB, CB, CB, CB, RB, CM, DM, CM, ST, ST |
+| 5-4-1 | GK, LB, CB, CB, CB, RB, LW, CM, CM, RW, ST |
+| 5-2-3 | GK, LB, CB, CB, CB, RB, CM, CM, LW, ST, RW |
+| 3-6-1 | GK, CB, CB, CB, LW, DM, CM, CM, AM, RW, ST |
 
 LW/RW representam também os jogadores abertos do meio-campo nas formações 4-4-2 e 3-5-2. Um jogador de linha pode ser colocado fora de suas posições principal/secundárias, com aviso visível. Um goleiro deve ocupar a primeira vaga; as outras dez exigem jogadores de linha.
 
@@ -28,7 +45,7 @@ LW/RW representam também os jogadores abertos do meio-campo nas formações 4-4
 | `tempo` | `slow`, `normal`, `fast` |
 | `build_up` | `short`, `balanced`, `direct` |
 
-A configuração inicial sugerida é equilibrada, pressão normal, ritmo normal e construção equilibrada. O motor da Entrega 04 já consome esses dados nos amistosos, aplicando os efeitos das táticas e da posição durante a simulação. O amistoso preserva a condição física oficial dos atletas e o calendário da carreira. Estatísticas esportivas e substituições durante partidas dependem das próximas entregas.
+A configuração inicial sugerida é equilibrada, pressão normal, ritmo normal e construção equilibrada. O motor consome esses dados e o perfil relativo de ataque, defesa e controle de cada formação. O amistoso preserva a condição física oficial dos atletas e o calendário da carreira.
 
 ## Validações
 
@@ -64,7 +81,7 @@ A configuração é o plano atual do clube. Snapshots imutáveis de escalações
 DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan test
 ```
 
-A suíte completa tem **55 testes**, aprovados em SQLite e MySQL 8.0.46. Os 20 testes desta entrega cobrem formações, opções táticas, persistência, retomada, quantidade de atletas, duplicações, disponibilidade, pertencimento, autorização, limite de reservas, entradas malformadas, conflitos de revisão, estados bloqueados, rollback após falha e integridade do banco.
+Os testes da entrega cobrem todas as formações, opções táticas, persistência, retomada, quantidade de atletas, duplicações, disponibilidade, pertencimento, autorização, limite de reservas, entradas malformadas, conflitos de revisão, estados bloqueados, rollback após falha e integridade do banco.
 
 Um fluxo HTTP com sessão e CSRF validou a troca de formação, a seleção de 11 titulares e 7 reservas, o salvamento das quatro opções táticas e a retomada após logout/login, sem avanço da data interna.
 

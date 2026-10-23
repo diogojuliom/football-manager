@@ -26,7 +26,12 @@ class FootballMatchEngineTest extends TestCase
 
     public static function engineModes(): array
     {
-        return ['legacy' => ['1.0.0', 'human'], 'current human' => ['2.0.0', 'human'], 'current AI' => ['2.0.0', 'ai']];
+        return [
+            'legacy' => ['1.0.0', 'human'],
+            'published V2' => ['2.0.0', 'human'],
+            'current human' => ['3.0.0', 'human'],
+            'current AI' => ['3.0.0', 'ai'],
+        ];
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('engineModes')]

@@ -64,7 +64,7 @@ class AiFriendlyTest extends TestCase
         $this->assertDatabaseCount('career_lineups', 0);
         $this->post(route('careers.friendlies.store', $this->career), $this->payload())->assertRedirect()->assertSessionHasNoErrors();
         $simulation = MatchSimulation::sole();
-        $this->assertSame('2.0.0', $simulation->engine_version);
+        $this->assertSame('3.0.0', $simulation->engine_version);
         $this->assertSame('finished', $simulation->result['status']);
         $this->assertSame(90, $simulation->result['minutes']);
         foreach (['home', 'away'] as $side) {

@@ -67,7 +67,14 @@ class SquadTest extends TestCase
     public function test_roster_lists_all_attributes_and_draft_does_not_write_anything(): void
     {
         $response = $this->get(route('careers.squad.edit', $this->career));
-        $response->assertOk()->assertSee('Elenco e táticas')->assertSee('sugestão inicial')->assertSee('Posições secundárias');
+        $response->assertOk()
+            ->assertSee('Elenco e táticas')
+            ->assertSee('sugestão inicial')
+            ->assertSee('Posições secundárias')
+            ->assertSee('Distribuição em campo')
+            ->assertSee('data-pitch-player="0"', false)
+            ->assertSee('data-starter-select="0"', false)
+            ->assertSee('Tendências da formação');
         foreach (Tactics::FORMATIONS as $formation => $positions) {
             $this->assertCount(11, $positions);
             $response->assertSee($formation);

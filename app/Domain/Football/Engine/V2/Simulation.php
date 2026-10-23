@@ -20,9 +20,12 @@ final class Simulation
 
     private float $homeBonus;
 
-    public function __construct(private array $input)
-    {
-        $this->random = new SeededRandom(self::VERSION.':'.$input['seed']);
+    public function __construct(
+        private array $input,
+        private string $simulationVersion = self::VERSION,
+        private bool $usesFormationProfiles = false,
+    ) {
+        $this->random = new SeededRandom($this->simulationVersion.':'.$input['seed']);
         $context = $input['home_context'];
         $occupancy = $context['attendance'] === null ? 0 : $context['attendance'] / $context['capacity'];
         $this->homeBonus = $context['neutral'] ? 0 : min(0.05, 0.03 + 0.02 * $occupancy * $context['engagement'] / 100);
@@ -83,7 +86,7 @@ final class Simulation
         $played = min(90, $this->minute);
         $this->minute = $played;
         $this->event('full_time', null, null, ['status' => $status]);
-        $result = ['engine_version' => self::VERSION, 'seed' => $this->input['seed'], 'status' => $status, 'minutes' => $played,
+        $result = ['engine_version' => $this->simulationVersion, 'seed' => $this->input['seed'], 'status' => $status, 'minutes' => $played,
             'home_bonus' => round($this->homeBonus, 6), 'events' => $this->events];
         $ticks = $this->teams['home']['stats']['possession_ticks'] + $this->teams['away']['stats']['possession_ticks'];
         $homePossession = round(100 * $this->teams['home']['stats']['possession_ticks'] / $ticks, 2);
@@ -150,6 +153,12 @@ final class Simulation
         $attack *= ['short' => 0.98, 'balanced' => 1, 'direct' => 1.06][$tactics['build_up']];
         $control *= ['low' => 0.98, 'normal' => 1, 'high' => 1.04][$tactics['pressure']];
         $control *= ['slow' => 1.04, 'normal' => 1, 'fast' => 0.96][$tactics['tempo']];
+        if ($this->usesFormationProfiles) {
+            $profile = Tactics::PROFILES[$tactics['formation']];
+            $attack *= $profile['attack'];
+            $defense *= $profile['defense'];
+            $control *= $profile['control'];
+        }
         $bonus = $side === 'home' ? 1 + $this->homeBonus : 1;
 
         return ['attack' => $attack * $bonus, 'defense' => $defense * $bonus, 'control' => $control * $bonus];

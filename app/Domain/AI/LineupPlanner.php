@@ -9,7 +9,7 @@ use InvalidArgumentException;
 
 final class LineupPlanner
 {
-    public function plan(array $roster, array $opponent, int $maxReserves = 7, bool $home = false): array
+    public function plan(array $roster, array $opponent, int $maxReserves = 7, bool $home = false, ?string $formation = null): array
     {
         if ($maxReserves < 0 || $maxReserves > 12) {
             throw new InvalidArgumentException('Limite de reservas inválido.');
@@ -19,8 +19,13 @@ final class LineupPlanner
             || count(array_filter($available, fn ($p) => ! PlayerScore::keeper($p))) < 10) {
             throw new InvalidArgumentException('A IA não possui goleiro e dez jogadores de linha disponíveis.');
         }
+        if ($formation !== null && ! isset(Tactics::FORMATIONS[$formation])) {
+            throw new InvalidArgumentException('Formação da IA inválida.');
+        }
+        $opposition = $this->estimateStrength($this->available($opponent));
+        $formations = $formation === null ? Tactics::FORMATIONS : [$formation => Tactics::FORMATIONS[$formation]];
         $best = null;
-        foreach (Tactics::FORMATIONS as $formation => $roles) {
+        foreach ($formations as $candidateFormation => $roles) {
             $assignment = $this->assign($roles, $available);
             $score = 0;
             $starters = [];
@@ -28,8 +33,18 @@ final class LineupPlanner
                 $starters[] = $available[$column];
                 $score += PlayerScore::forRole($available[$column], $roles[$slot]);
             }
-            if ($best === null || $score > $best['score']) {
-                $best = compact('formation', 'score', 'starters');
+            $profile = Tactics::PROFILES[$candidateFormation];
+            $ratio = ($score / 11000) / max(1, $opposition);
+            $tacticalFit = $ratio < 0.9
+                ? 0.6 * $profile['defense'] + 0.4 * $profile['control']
+                : ($ratio > 1.1
+                    ? 0.6 * $profile['attack'] + 0.4 * $profile['control']
+                    : ($home
+                        ? 0.4 * $profile['attack'] + 0.25 * $profile['defense'] + 0.35 * $profile['control']
+                        : 0.3 * $profile['attack'] + 0.35 * $profile['defense'] + 0.35 * $profile['control']));
+            $selectionScore = (int) round($score * $tacticalFit);
+            if ($best === null || $selectionScore > $best['selection_score']) {
+                $best = ['formation' => $candidateFormation, 'score' => $score, 'selection_score' => $selectionScore, 'starters' => $starters];
             }
         }
         $remaining = array_values(array_filter($available, fn ($p) => ! in_array($p['id'], array_column($best['starters'], 'id'), true)));
@@ -49,7 +64,6 @@ final class LineupPlanner
             $remaining = array_values(array_filter($remaining, fn ($p) => $p['id'] !== $chosen['id']));
         }
         $strength = $best['score'] / 11000;
-        $opposition = $this->estimateStrength($this->available($opponent));
         $fitness = array_sum(array_column($best['starters'], 'fitness')) / 11;
 
         return ['controller' => 'ai', 'ai_policy_version' => MatchDecisions::VERSION,
@@ -65,12 +79,12 @@ final class LineupPlanner
         $ids = [];
         foreach ($roster as $player) {
             if (! is_array($player) || ! is_string($player['id'] ?? null) || ! preg_match('/^[a-zA-Z0-9_-]{1,64}$/D', $player['id']) || isset($ids[$player['id']])
-                || ! is_string($player['name'] ?? null) || ! in_array($player['primary_position'] ?? null, ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'], true)
+                || ! is_string($player['name'] ?? null) || ! in_array($player['primary_position'] ?? null, Tactics::POSITIONS, true)
                 || ! is_array($player['secondary_positions'] ?? null) || ! is_bool($player['available'] ?? true)) {
                 throw new InvalidArgumentException('Atleta inválido no elenco da IA.');
             }
             foreach ($player['secondary_positions'] as $position) {
-                if (! in_array($position, ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'], true)) {
+                if (! in_array($position, Tactics::POSITIONS, true)) {
                     throw new InvalidArgumentException('Posição secundária inválida.');
                 }
             }

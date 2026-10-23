@@ -39,6 +39,14 @@ window.addEventListener('pageshow', () => {
 });
 document.querySelectorAll('[data-dismiss]').forEach((button) => button.addEventListener('click', () => button.closest('[data-dismissible]')?.remove()));
 
+document.querySelectorAll('[data-starter-select]').forEach((select) => {
+    const marker = document.querySelector(`[data-pitch-player="${select.dataset.starterSelect}"] [data-pitch-name]`);
+    if (!marker) return;
+    select.addEventListener('change', () => {
+        marker.textContent = select.selectedOptions[0]?.dataset.playerName || 'Escolha atleta';
+    });
+});
+
 document.querySelectorAll('[data-ticket-preview]').forEach((form) => {
     const input = form.querySelector('[name="price"]');
     const output = form.querySelector('[data-ticket-estimate]');
