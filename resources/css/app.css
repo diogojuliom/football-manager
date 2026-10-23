@@ -200,12 +200,16 @@ body.game-page {
 .formation-profile b { margin-left: .2rem; color: #34d399; }
 .tactical-board { padding: 1.25rem; margin: 1.25rem 0; border: 1px solid #1e293b; border-radius: 1rem; background: rgba(15, 23, 42, .88); }
 .fixed-position-badge { align-self: flex-start; padding: .38rem .65rem; border: 1px solid rgba(52, 211, 153, .35); border-radius: 999px; background: rgba(5, 150, 105, .12); color: #6ee7b7; font-size: .62rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-.tactical-pitch { position: relative; width: min(100%, 46rem); aspect-ratio: 3 / 4; min-height: 36rem; margin: 0 auto; overflow: hidden; border-radius: .8rem; background-color: #12633a; background-image: repeating-linear-gradient(0deg, rgba(255, 255, 255, .035) 0 9%, rgba(0, 0, 0, .025) 9% 18%); box-shadow: inset 0 0 70px rgba(0, 0, 0, .25), 0 16px 35px rgba(0, 0, 0, .2); }
+.interactive-squad-layout { display: grid; grid-template-columns: minmax(28rem, 1.65fr) minmax(18rem, .85fr); gap: 1.25rem; align-items: start; }
+.tactical-field-column { min-width: 0; }
+.tactical-pitch { position: relative; width: 100%; aspect-ratio: 3 / 4; min-height: 36rem; margin: 0 auto; overflow: hidden; border-radius: .8rem; background-color: #12633a; background-image: repeating-linear-gradient(0deg, rgba(255, 255, 255, .035) 0 9%, rgba(0, 0, 0, .025) 9% 18%); box-shadow: inset 0 0 70px rgba(0, 0, 0, .25), 0 16px 35px rgba(0, 0, 0, .2); }
 .game-page .tactical-pitch-svg { position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%; }
 .tactical-pitch-svg .pitch-line, .tactical-pitch-svg .pitch-circle { fill: none; stroke: rgba(226, 232, 240, .7); stroke-width: .45; vector-effect: non-scaling-stroke; }
 .tactical-pitch-svg .pitch-fill { fill: rgba(226, 232, 240, .8); }
 .tactical-pitch-svg .pitch-arc { stroke-width: .36; }
-.pitch-player { position: absolute; z-index: 2; top: var(--pitch-y); left: var(--pitch-x); display: grid; grid-template-columns: 1.45rem minmax(0, 1fr); grid-template-rows: auto auto auto; align-items: center; width: clamp(4rem, 9vw, 6rem); min-height: 3.15rem; padding: .32rem; border: 1px solid rgba(110, 231, 183, .65); border-radius: .65rem; background: rgba(2, 6, 23, .92); box-shadow: 0 7px 15px rgba(0, 0, 0, .32); cursor: default; transform: translate(-50%, -50%); user-select: none; }
+.game-page button.pitch-player { position: absolute; z-index: 2; top: var(--pitch-y); left: var(--pitch-x); display: grid; grid-template-columns: 1.45rem minmax(0, 1fr); grid-template-rows: auto auto auto; align-items: center; gap: .12rem .22rem; width: clamp(4rem, 8vw, 6rem); min-height: 3.15rem; padding: .32rem; margin: 0; border: 1px solid rgba(110, 231, 183, .65); border-radius: .65rem; background: rgba(2, 6, 23, .92); box-shadow: 0 7px 15px rgba(0, 0, 0, .32); color: inherit; cursor: pointer; transform: translate(-50%, -50%); transition: border-color .16s, background-color .16s, box-shadow .16s; user-select: none; }
+.game-page button.pitch-player:hover { border-color: #a7f3d0; background: rgba(6, 32, 25, .96); }
+.game-page button.pitch-player.is-selected { z-index: 3; border-color: #fbbf24; background: #422006; box-shadow: 0 0 0 3px rgba(251, 191, 36, .24), 0 9px 20px rgba(0, 0, 0, .45); }
 .pitch-player:focus-visible { outline: 2px solid #fbbf24; outline-offset: 2px; }
 .pitch-player > [data-pitch-shirt] { grid-row: 1 / 4; display: grid; place-items: center; width: 1.3rem; height: 1.3rem; border-radius: 50%; background: #059669; color: #fff; font-size: .6rem; font-weight: 900; }
 .pitch-player strong { overflow: hidden; color: #6ee7b7; font-size: .58rem; line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
@@ -214,16 +218,45 @@ body.game-page {
 .pitch-player-condition i { position: relative; width: 1.35rem; height: .18rem; overflow: hidden; border-radius: 999px; background: #334155; }
 .pitch-player-condition i::after { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--fitness); border-radius: inherit; background: #34d399; }
 .pitch-player-condition b { font-weight: 700; }
-.tactical-board-status { width: min(100%, 46rem); min-height: 1.15rem; margin: .7rem auto 0; color: #94a3b8; font-size: .72rem; text-align: center; }
+.squad-selection-panel { display: grid; gap: 1rem; min-width: 0; }
+.squad-player-section { overflow: hidden; border: 1px solid #263449; border-radius: .8rem; background: rgba(2, 6, 23, .45); }
+.squad-player-section > header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .75rem .85rem; border-bottom: 1px solid #263449; }
+.squad-player-section h3 { margin: 0; color: #f8fafc; font-size: .78rem; }
+.squad-player-section header p { margin: .18rem 0 0; color: #64748b; font-size: .58rem; }
+.squad-player-section header > span { display: grid; place-items: center; min-width: 2rem; height: 1.5rem; padding: 0 .4rem; border-radius: 999px; background: #1e293b; color: #94a3b8; font-size: .58rem; font-weight: 900; }
+.squad-player-list { display: grid; gap: .38rem; padding: .55rem; }
+.outside-list { max-height: 25rem; overflow-y: auto; }
+.game-page button.squad-player-card { display: grid; grid-template-columns: 2rem minmax(0, 1fr) 2.6rem; align-items: center; gap: .55rem; width: 100%; min-height: 3.25rem; padding: .5rem .55rem; margin: 0; border: 1px solid #263449; border-radius: .6rem; background: #0f172a; color: #e2e8f0; text-align: left; }
+.game-page button.squad-player-card:hover { border-color: #4ade80; background: #13243a; }
+.game-page button.squad-player-card.is-selected { border-color: #fbbf24; background: #422006; box-shadow: inset 3px 0 #fbbf24, 0 0 0 2px rgba(251, 191, 36, .16); }
+.game-page button.squad-player-card:disabled { opacity: .55; }
+.squad-player-position { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: .48rem; background: #064e3b; color: #6ee7b7; font-size: .55rem; font-weight: 900; }
+.squad-player-copy { display: grid; min-width: 0; }
+.squad-player-copy strong, .squad-player-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.squad-player-copy strong { color: #f1f5f9; font-size: .65rem; }
+.squad-player-copy small { margin-top: .15rem; color: #94a3b8; font-size: .52rem; }
+.squad-player-copy > i { display: block; width: 100%; height: .2rem; margin-top: .35rem; overflow: hidden; border-radius: 999px; background: #334155; }
+.squad-player-copy > i span { display: block; width: var(--fitness); height: 100%; border-radius: inherit; background: linear-gradient(90deg, #059669, #34d399); }
+.squad-player-card > b { color: #94a3b8; font-size: .58rem; text-align: right; }
+.empty-squad-list { margin: .25rem; padding: 1rem; color: #64748b; font-size: .62rem; text-align: center; }
+.tactical-board-status { min-height: 1.15rem; margin: .8rem auto 0; color: #94a3b8; font-size: .72rem; text-align: center; }
+
+@media (max-width: 1120px) {
+    .interactive-squad-layout { grid-template-columns: 1fr; }
+    .tactical-pitch { width: min(100%, 46rem); }
+    .squad-selection-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 @media (max-width: 620px) {
     .formation-profile { justify-content: flex-start; }
     .tactical-board { padding: .8rem; }
     .tactical-pitch { min-height: 32rem; }
-    .pitch-player { grid-template-columns: 1.05rem minmax(0, 1fr); width: 2.7rem; min-height: 2.55rem; padding: .2rem; border-radius: .5rem; }
-    .pitch-player > [data-pitch-shirt] { width: .95rem; height: .95rem; font-size: .48rem; }
-    .pitch-player strong { font-size: .5rem; }
+    .game-page button.pitch-player { grid-template-columns: .92rem minmax(0, 1fr); gap: .05rem .1rem; width: 2.8rem; min-height: 2.55rem; padding: .2rem; border-radius: .5rem; }
+    .pitch-player > [data-pitch-shirt] { width: .84rem; height: .84rem; font-size: .46rem; }
+    .pitch-player strong { font-size: .46rem; letter-spacing: -.02em; }
     .pitch-player small { font-size: .45rem; }
     .pitch-player-condition { gap: .1rem; font-size: .4rem; }
     .pitch-player-condition i { width: .72rem; }
+    .squad-selection-panel { grid-template-columns: 1fr; }
+    .outside-list { max-height: 21rem; }
 }

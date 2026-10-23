@@ -40,7 +40,9 @@ LW/RW representam também os jogadores abertos do meio-campo nas formações 4-4
 
 As interfaces exibem siglas em português (`GOL`, `ZAG`, `LE`, `LD`, `VOL`, `MC`, `MEI`, `PE`, `PD` e `ATA`). Os identificadores internos em inglês continuam sendo usados no banco, na IA e no motor para manter compatibilidade com carreiras e partidas existentes.
 
-`Tactics::frontendModel()` é o contrato versionado do campo: reúne as mesmas formações consumidas pelo motor e pela IA, os papéis internos, rótulos traduzidos, perfis e coordenadas normalizadas de 0 a 100. A interação está explicitamente no modo `fixed`, com `draggable` e `swappable` desabilitados. Os marcadores já carregam vaga, atleta, papel e coordenadas em atributos de dados para uma integração futura com Interact.js, sem instalar ou ativar arraste nesta etapa.
+`Tactics::frontendModel()` é o contrato versionado do campo: reúne as mesmas formações consumidas pelo motor e pela IA, os papéis internos, rótulos traduzidos, perfis e coordenadas normalizadas de 0 a 100. A interação está explicitamente no modo `fixed`, com troca por clique e `draggable` desabilitado. Os marcadores já carregam vaga, atleta, papel e coordenadas em atributos de dados para uma integração futura com Interact.js, sem instalar ou ativar arraste nesta etapa.
+
+O quadro interativo organiza titulares no campo, reservas no banco e os demais atletas em **Fora da convocação**. Clique em dois atletas para preparar uma troca entre titulares, entre titular e reserva ou entre reserva e fora da convocação; a ordem dos cliques não importa. O primeiro card fica destacado e pode ser cancelado com outro clique ou `Esc`. As mudanças atualizam os selects do formulário, permanecem apenas no navegador até **Salvar escalação e táticas** e respeitam a vaga exclusiva de goleiro, disponibilidade e unicidade dos atletas. Arrastar jogadores continua desabilitado.
 
 | Campo persistido | Opções |
 | --- | --- |

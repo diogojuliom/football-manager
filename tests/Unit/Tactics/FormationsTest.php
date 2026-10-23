@@ -66,7 +66,7 @@ class FormationsTest extends TestCase
         $model = Tactics::frontendModel();
         $this->assertSame(Tactics::MODEL_VERSION, $model['version']);
         $this->assertSame(['unit' => 'percent', 'min' => 0, 'max' => 100, 'origin' => 'top-left'], $model['coordinateSystem']);
-        $this->assertSame(['mode' => 'fixed', 'draggable' => false, 'swappable' => false], $model['interaction']);
+        $this->assertSame(['mode' => 'fixed', 'draggable' => false, 'swappable' => true, 'mechanism' => 'click'], $model['interaction']);
         $this->assertSame(self::EXPECTED, array_keys($model['formations']));
 
         foreach ($expectedLabels as $role => $label) {

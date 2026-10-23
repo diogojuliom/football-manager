@@ -1,5 +1,5 @@
-const readModel = (board) => {
-    const source = board.querySelector('[data-tactical-model]');
+const readJson = (root, selector) => {
+    const source = root.querySelector(selector);
 
     if (!source) return null;
 
@@ -20,9 +20,14 @@ const normalizedCoordinate = (value, model) => {
 export class TacticalBoard {
     constructor(board) {
         this.board = board;
-        this.model = readModel(board);
+        this.model = readJson(board, '[data-tactical-model]');
+        this.players = readJson(board, '[data-squad-players]') || {};
         this.markers = [...board.querySelectorAll('[data-pitch-player]')];
+        this.starterSelects = [...document.querySelectorAll('[data-starter-select]')];
+        this.reserveSelects = [...document.querySelectorAll('[data-reserve-select]')];
         this.currentFormation = board.dataset.currentFormation;
+        this.selectedCard = null;
+        this.editable = this.starterSelects.some((select) => !select.disabled);
     }
 
     initialize() {
@@ -31,9 +36,23 @@ export class TacticalBoard {
         const formationSelect = document.querySelector('[data-formation-select]');
         formationSelect?.addEventListener('change', () => this.previewFormation(formationSelect.value));
 
-        document.querySelectorAll('[data-starter-select]').forEach((select) => {
-            select.addEventListener('change', () => this.updatePlayer(Number(select.dataset.starterSelect), select.selectedOptions[0]));
+        [...this.starterSelects, ...this.reserveSelects].forEach((select) => {
+            select.dataset.previousValue = select.value;
+            select.addEventListener('change', () => this.handleSelectChange(select));
         });
+
+        this.board.addEventListener('click', (event) => {
+            const card = event.target.closest('[data-squad-player]');
+            if (card && this.board.contains(card)) this.handlePlayerClick(card);
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && this.selectedCard) {
+                this.clearSelection();
+                this.announce('Seleção cancelada.');
+            }
+        });
+
+        this.syncInterface();
     }
 
     previewFormation(formationId) {
@@ -58,39 +77,235 @@ export class TacticalBoard {
 
         this.board.dataset.previewFormation = formationId;
         this.board.querySelector('[data-board-title]').textContent = `Distribuição em campo — ${formationId}`;
-        this.board.querySelector('[data-pitch]')?.setAttribute('aria-label', `Representação visual da formação ${formationId}`);
+        this.board.querySelector('[data-pitch]')?.setAttribute('aria-label', `Titulares da formação ${formationId}`);
 
         Object.entries(formation.profile).forEach(([name, value]) => {
             const output = document.querySelector(`[data-formation-profile="${name}"]`);
             if (output) output.textContent = String(Math.round(value * 100));
         });
 
-        const status = this.board.querySelector('[data-tactical-status]');
-        if (status) {
-            status.textContent = formationId === this.currentFormation
-                ? `Formação ${formationId} aplicada.`
-                : `Prévia da formação ${formationId}. Use “Aplicar formação” para recalcular a escalação.`;
+        this.announce(formationId === this.currentFormation
+            ? `Formação ${formationId} aplicada.`
+            : `Prévia da formação ${formationId}. Use “Aplicar formação” para recalcular a escalação.`);
+    }
+
+    handlePlayerClick(card) {
+        if (!this.editable || card.disabled || !card.dataset.playerId) return;
+
+        if (!this.selectedCard) {
+            this.selectedCard = card;
+            card.classList.add('is-selected');
+            card.setAttribute('aria-pressed', 'true');
+            this.announce(`${this.player(card.dataset.playerId).name} selecionado. Escolha o segundo atleta ou pressione Esc para cancelar.`);
+
+            return;
         }
+
+        if (this.selectedCard === card) {
+            this.clearSelection();
+            this.announce('Seleção cancelada.');
+
+            return;
+        }
+
+        const first = this.selection(this.selectedCard);
+        const second = this.selection(card);
+        const result = this.prepareSwap(first, second);
+        this.clearSelection();
+
+        if (!result.ok) {
+            this.announce(result.message);
+
+            return;
+        }
+
+        this.syncInterface();
+        this.announce(`Troca preparada: ${this.player(first.playerId).name} e ${this.player(second.playerId).name}. Salve a escalação para confirmar.`);
+    }
+
+    selection(card) {
+        return {
+            unit: card.dataset.unit,
+            slot: card.dataset.slot === undefined ? null : Number(card.dataset.slot),
+            playerId: card.dataset.playerId,
+        };
+    }
+
+    prepareSwap(first, second) {
+        if (first.unit === 'starter' && second.unit === 'starter') {
+            return this.swapSelectValues(this.starterSelects[first.slot], this.starterSelects[second.slot]);
+        }
+
+        const starter = first.unit === 'starter' ? first : (second.unit === 'starter' ? second : null);
+        const reserve = first.unit === 'reserve' ? first : (second.unit === 'reserve' ? second : null);
+        const outside = first.unit === 'outside' ? first : (second.unit === 'outside' ? second : null);
+
+        if (starter && reserve && !outside) {
+            return this.swapSelectValues(this.starterSelects[starter.slot], this.reserveSelects[reserve.slot]);
+        }
+
+        if (reserve && outside && !starter) {
+            return this.assignSelect(this.reserveSelects[reserve.slot], outside.playerId);
+        }
+
+        return { ok: false, message: 'Essa troca não é permitida. Troque titulares entre si, titular com reserva ou reserva com atleta fora da convocação.' };
+    }
+
+    swapSelectValues(first, second) {
+        const firstValue = first.value;
+        const secondValue = second.value;
+
+        if (!this.canSelect(first, secondValue) || !this.canSelect(second, firstValue)) {
+            return { ok: false, message: 'A troca não respeita a vaga de goleiro ou envolve um atleta indisponível.' };
+        }
+
+        first.value = secondValue;
+        second.value = firstValue;
+        first.dataset.previousValue = first.value;
+        second.dataset.previousValue = second.value;
+
+        return { ok: true };
+    }
+
+    assignSelect(select, playerId) {
+        if (!this.canSelect(select, playerId)) {
+            return { ok: false, message: 'O atleta não está disponível para ocupar essa vaga.' };
+        }
+
+        select.value = playerId;
+        select.dataset.previousValue = select.value;
+
+        return { ok: true };
+    }
+
+    canSelect(select, playerId) {
+        const option = [...select.options].find((candidate) => candidate.value === String(playerId));
+        if (!option || option.disabled) return false;
+
+        if (select.matches('[data-starter-select]')) {
+            const player = this.player(playerId);
+            return Boolean(player?.isGoalkeeper) === (Number(select.dataset.starterSelect) === 0);
+        }
+
+        return true;
+    }
+
+    handleSelectChange(select) {
+        const values = [...this.starterSelects, ...this.reserveSelects].map((field) => field.value).filter(Boolean);
+        const duplicate = new Set(values).size !== values.length;
+        const invalidStarter = this.starterSelects.some((field, slot) => {
+            const player = this.player(field.value);
+            return !player || Boolean(player.isGoalkeeper) !== (slot === 0);
+        });
+
+        if (duplicate || invalidStarter) {
+            select.value = select.dataset.previousValue || '';
+            this.announce(duplicate ? 'Esse atleta já ocupa outra vaga.' : 'A primeira vaga exige goleiro e as demais exigem jogadores de linha.');
+        } else {
+            select.dataset.previousValue = select.value;
+            this.announce('Escalação atualizada no formulário. Salve para confirmar.');
+        }
+
+        this.clearSelection();
+        this.syncInterface();
+    }
+
+    syncInterface() {
+        this.starterSelects.forEach((select, slot) => this.updatePlayer(slot, select.selectedOptions[0]));
+        this.reserveSelects.forEach((select, slot) => this.updateBench(slot, select.value));
+        this.renderOutsidePlayers();
+        const count = this.reserveSelects.filter((select) => select.value).length;
+        const counter = this.board.querySelector('[data-bench-count]');
+        if (counter) counter.textContent = `${count}/${this.reserveSelects.length}`;
     }
 
     updatePlayer(slot, option) {
         const marker = this.markers[slot];
         if (!marker) return;
 
-        marker.dataset.playerId = option?.value || '';
-        marker.querySelector('[data-pitch-name]').textContent = option?.dataset.playerName || 'Escolha atleta';
+        const player = this.player(option?.value);
+        marker.dataset.playerId = player?.id || '';
+        marker.disabled = !this.editable || !player;
+        marker.querySelector('[data-pitch-name]').textContent = player?.name || 'Escolha atleta';
 
-        const fitness = Number(option?.dataset.playerFitness);
-        const normalizedFitness = Number.isFinite(fitness) ? Math.min(100, Math.max(0, fitness)) : null;
         const condition = marker.querySelector('[data-pitch-fitness]');
-        condition.hidden = normalizedFitness === null;
-
-        if (normalizedFitness !== null) {
-            condition.querySelector('i').style.setProperty('--fitness', `${normalizedFitness}%`);
-            condition.querySelector('b').textContent = `${normalizedFitness}%`;
+        condition.hidden = !player;
+        if (player) {
+            condition.querySelector('i').style.setProperty('--fitness', `${player.fitness}%`);
+            condition.querySelector('b').textContent = `${player.fitness}%`;
         }
 
         this.updateAccessibleName(marker);
+    }
+
+    updateBench(slot, playerId) {
+        const card = this.board.querySelector(`[data-unit="reserve"][data-slot="${slot}"]`);
+        if (!card) return;
+
+        const player = this.player(playerId);
+        card.dataset.playerId = player?.id || '';
+        card.disabled = !this.editable || !player;
+        this.fillCard(card, player, player ? `Condição ${player.fitness}%` : 'Sem jogador relacionado');
+        card.setAttribute('aria-label', player ? `Reserva ${slot + 1}: ${player.name}, ${player.positionName}, condição ${player.fitness}%` : `Reserva ${slot + 1}: vaga livre`);
+    }
+
+    renderOutsidePlayers() {
+        const selected = new Set([...this.starterSelects, ...this.reserveSelects].map((select) => select.value).filter(Boolean));
+        const outside = Object.values(this.players).filter((player) => !selected.has(player.id));
+        const list = this.board.querySelector('[data-outside-list]');
+        if (!list) return;
+
+        list.replaceChildren();
+        outside.forEach((player) => list.append(this.createOutsideCard(player)));
+        if (outside.length === 0) {
+            const empty = document.createElement('p');
+            empty.className = 'empty-squad-list';
+            empty.textContent = 'Todo o elenco disponível está relacionado.';
+            list.append(empty);
+        }
+        const counter = this.board.querySelector('[data-outside-count]');
+        if (counter) counter.textContent = String(outside.length);
+    }
+
+    createOutsideCard(player) {
+        const card = document.createElement('button');
+        card.className = 'squad-player-card';
+        card.type = 'button';
+        card.dataset.squadPlayer = '';
+        card.dataset.unit = 'outside';
+        card.dataset.playerId = player.id;
+        card.setAttribute('aria-pressed', 'false');
+        card.disabled = !this.editable || !player.available;
+        card.innerHTML = '<span class="squad-player-position" data-card-position></span><span class="squad-player-copy"><strong data-card-name></strong><small data-card-meta></small><i><span data-card-fitness></span></i></span><b data-card-fitness-label></b>';
+        this.fillCard(card, player, player.available ? `Condição ${player.fitness}%` : 'Indisponível');
+        card.setAttribute('aria-label', `${player.name}, ${player.positionName}, ${player.available ? `condição ${player.fitness}%` : 'indisponível'}`);
+
+        return card;
+    }
+
+    fillCard(card, player, meta) {
+        card.querySelector('[data-card-position]').textContent = player?.positionLabel || '—';
+        card.querySelector('[data-card-position]').title = player?.positionName || '';
+        card.querySelector('[data-card-name]').textContent = player?.name || 'Vaga livre';
+        card.querySelector('[data-card-meta]').textContent = meta;
+        card.querySelector('[data-card-fitness]').style.setProperty('--fitness', `${player?.fitness || 0}%`);
+        card.querySelector('[data-card-fitness-label]').textContent = player ? `${player.fitness}%` : '—';
+    }
+
+    player(playerId) {
+        return this.players[String(playerId)] || null;
+    }
+
+    clearSelection() {
+        if (!this.selectedCard) return;
+        this.selectedCard.classList.remove('is-selected');
+        this.selectedCard.setAttribute('aria-pressed', 'false');
+        this.selectedCard = null;
+    }
+
+    announce(message) {
+        const status = this.board.querySelector('[data-tactical-status]');
+        if (status) status.textContent = message;
     }
 
     updateAccessibleName(marker) {

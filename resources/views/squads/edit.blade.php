@@ -12,6 +12,18 @@
     $submittedRevision = old('revision',$settings['revision']);
     $revision = is_scalar($submittedRevision) && filter_var($submittedRevision,FILTER_VALIDATE_INT)!==false ? $submittedRevision : $settings['revision'];
     $available = $players->filter(fn($player)=>$player->isAvailableOn($career->current_date))->count();
+    $selectedPlayerIds = collect([...$starters, ...$substitutes])->filter(fn($id) => is_scalar($id))->map(fn($id) => (int)$id);
+    $outsidePlayers = $players->reject(fn($player) => $selectedPlayerIds->contains($player->id));
+    $playerDirectory = $players->mapWithKeys(fn($player) => [(string)$player->id => [
+        'id' => (string)$player->id,
+        'name' => $player->name,
+        'position' => $player->primary_position,
+        'positionLabel' => \App\Domain\Tactics\Tactics::positionLabel($player->primary_position),
+        'positionName' => \App\Domain\Tactics\Tactics::positionName($player->primary_position),
+        'fitness' => (int)$player->fitness,
+        'isGoalkeeper' => $player->canPlay('GK'),
+        'available' => $player->isAvailableOn($career->current_date),
+    ]]);
 @endphp
 <header class="page-header"><div class="page-header-copy"><a class="breadcrumb" href="{{ route('careers.show',$career) }}">← Voltar à carreira</a><p class="eyebrow">Departamento de futebol</p><h1>Elenco e táticas</h1><p>{{ $club->name }} · {{ $career->current_date->format('d/m/Y') }}. Defina titulares, banco e estratégia para as próximas partidas.</p></div><span class="badge">Formação {{ $settings['formation'] }}</span></header>
 <div class="stat-grid"><article class="stat-card"><span>Jogadores</span><strong>{{ $players->count() }}</strong><small>no elenco principal</small></article><article class="stat-card"><span>Disponíveis</span><strong>{{ $available }}</strong><small>na data interna atual</small></article><article class="stat-card"><span>Condição média</span><strong>{{ (int)round($players->avg('fitness')) }}%</strong><small>condição física</small></article><article class="stat-card"><span>Moral médio</span><strong>{{ (int)round($players->avg('morale')) }}</strong><small>de 100 pontos</small></article></div>
@@ -21,8 +33,11 @@
 <form class="squad-form" method="post" action="{{ route('careers.squad.update',$career) }}" data-loading-form data-loading-label="Salvando escalação…">@csrf @method('PUT')<input type="hidden" name="formation" value="{{ $settings['formation'] }}"><input type="hidden" name="revision" value="{{ $revision }}">
 <section class="tactical-board" aria-labelledby="tactical-board-title" data-tactical-board data-current-formation="{{ $settings['formation'] }}" data-preview-formation="{{ $settings['formation'] }}" data-interaction-mode="fixed">
     <script type="application/json" data-tactical-model>@json($tacticalModel)</script>
-    <div class="panel-header"><div><h2 id="tactical-board-title" data-board-title>Distribuição em campo — {{ $settings['formation'] }}</h2><p>A posição de cada atleta corresponde à vaga numerada na escalação.</p></div><span class="fixed-position-badge">Posições fixas</span></div>
-    <div class="tactical-pitch" data-pitch role="list" aria-label="Representação visual da formação {{ $settings['formation'] }}">
+    <script type="application/json" data-squad-players>@json($playerDirectory)</script>
+    <div class="panel-header"><div><h2 id="tactical-board-title" data-board-title>Distribuição em campo — {{ $settings['formation'] }}</h2><p>Selecione dois atletas para trocar suas vagas antes de salvar.</p></div><span class="fixed-position-badge">Troca por clique</span></div>
+    <div class="interactive-squad-layout">
+    <div class="tactical-field-column">
+    <div class="tactical-pitch" data-pitch role="group" aria-label="Titulares da formação {{ $settings['formation'] }}">
         <svg class="tactical-pitch-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false">
             <rect class="pitch-line" x="1" y="1" width="98" height="98" rx="1" />
             <path class="pitch-line" d="M1 50h98" />
@@ -34,17 +49,38 @@
         </svg>
         @foreach($slots as $slot=>$position)
             @php($selectedPlayer = isset($starters[$slot]) && is_scalar($starters[$slot]) ? $players->firstWhere('id', (int)$starters[$slot]) : null)
-            <div class="pitch-player" style="--pitch-x: {{ $position['x'] }}%; --pitch-y: {{ $position['y'] }}%" role="listitem" tabindex="0" aria-label="Vaga {{ $slot + 1 }}, {{ $position['name'] }}: {{ $selectedPlayer?->name ?? 'Escolha atleta' }}{{ $selectedPlayer ? ', condição '.$selectedPlayer->fitness.'%' : '' }}" data-pitch-player="{{ $slot }}" data-role="{{ $position['role'] }}" data-x="{{ $position['x'] }}" data-y="{{ $position['y'] }}" data-player-id="{{ $selectedPlayer?->id }}" data-draggable="false" data-interact-enabled="false">
+            <button class="pitch-player" type="button" style="--pitch-x: {{ $position['x'] }}%; --pitch-y: {{ $position['y'] }}%" aria-pressed="false" aria-label="Vaga {{ $slot + 1 }}, {{ $position['name'] }}: {{ $selectedPlayer?->name ?? 'Escolha atleta' }}{{ $selectedPlayer ? ', condição '.$selectedPlayer->fitness.'%' : '' }}" data-squad-player data-unit="starter" data-slot="{{ $slot }}" data-pitch-player="{{ $slot }}" data-role="{{ $position['role'] }}" data-x="{{ $position['x'] }}" data-y="{{ $position['y'] }}" data-player-id="{{ $selectedPlayer?->id }}" data-draggable="false" data-interact-enabled="false" @disabled(!$editable || !$selectedPlayer)>
                 <span data-pitch-shirt>{{ $slot + 1 }}</span><strong data-pitch-position title="{{ $position['name'] }}">{{ $position['label'] }}</strong><small data-pitch-name>{{ $selectedPlayer?->name ?? 'Escolha atleta' }}</small>
                 <span class="pitch-player-condition" data-pitch-fitness @hidden(!$selectedPlayer)><i style="--fitness: {{ $selectedPlayer?->fitness ?? 0 }}%"></i><b>{{ $selectedPlayer?->fitness ?? 0 }}%</b></span>
-            </div>
+            </button>
         @endforeach
     </div>
-    <p class="tactical-board-status" role="status" aria-live="polite" data-tactical-status>Formação {{ $settings['formation'] }} aplicada.</p>
+    </div>
+    <aside class="squad-selection-panel" aria-label="Banco e jogadores fora da convocação">
+        <section class="squad-player-section"><header><div><h3>Banco de reservas</h3><p>Até {{ $limit }} atletas</p></div><span data-bench-count>{{ collect($substitutes)->filter(fn($id) => is_scalar($id) && $id !== '')->count() }}/{{ $limit }}</span></header><div class="squad-player-list" data-bench-list>
+            @for($slot=0;$slot<$limit;$slot++)
+                @php($benchPlayer = isset($substitutes[$slot]) && is_scalar($substitutes[$slot]) ? $players->firstWhere('id', (int)$substitutes[$slot]) : null)
+                <button class="squad-player-card" type="button" data-squad-player data-unit="reserve" data-slot="{{ $slot }}" data-player-id="{{ $benchPlayer?->id }}" aria-pressed="false" @disabled(!$editable || !$benchPlayer)>
+                    <span class="squad-player-position" data-card-position title="{{ $benchPlayer ? \App\Domain\Tactics\Tactics::positionName($benchPlayer->primary_position) : '' }}">{{ $benchPlayer ? \App\Domain\Tactics\Tactics::positionLabel($benchPlayer->primary_position) : '—' }}</span><span class="squad-player-copy"><strong data-card-name>{{ $benchPlayer?->name ?? 'Vaga livre' }}</strong><small data-card-meta>{{ $benchPlayer ? 'Condição '.$benchPlayer->fitness.'%' : 'Sem jogador relacionado' }}</small><i><span data-card-fitness style="--fitness: {{ $benchPlayer?->fitness ?? 0 }}%"></span></i></span><b data-card-fitness-label>{{ $benchPlayer?->fitness ?? '—' }}{{ $benchPlayer ? '%' : '' }}</b>
+                </button>
+            @endfor
+        </div></section>
+        <section class="squad-player-section outside-section"><header><div><h3>Fora da convocação</h3><p>Disponíveis para o banco</p></div><span data-outside-count>{{ $outsidePlayers->count() }}</span></header><div class="squad-player-list outside-list" data-outside-list>
+            @forelse($outsidePlayers as $outsidePlayer)
+                <button class="squad-player-card" type="button" data-squad-player data-unit="outside" data-player-id="{{ $outsidePlayer->id }}" aria-pressed="false" @disabled(!$editable || !$outsidePlayer->isAvailableOn($career->current_date))>
+                    <span class="squad-player-position" data-card-position title="{{ \App\Domain\Tactics\Tactics::positionName($outsidePlayer->primary_position) }}">{{ \App\Domain\Tactics\Tactics::positionLabel($outsidePlayer->primary_position) }}</span><span class="squad-player-copy"><strong data-card-name>{{ $outsidePlayer->name }}</strong><small data-card-meta>{{ $outsidePlayer->isAvailableOn($career->current_date) ? 'Condição '.$outsidePlayer->fitness.'%' : 'Indisponível' }}</small><i><span data-card-fitness style="--fitness: {{ $outsidePlayer->fitness }}%"></span></i></span><b data-card-fitness-label>{{ $outsidePlayer->fitness }}%</b>
+                </button>
+            @empty
+                <p class="empty-squad-list">Todo o elenco disponível está relacionado.</p>
+            @endforelse
+        </div></section>
+    </aside>
+    </div>
+    <p class="tactical-board-status" role="status" aria-live="polite" data-tactical-status>Selecione dois atletas para trocar. Pressione Esc para cancelar.</p>
 </section>
 <div class="content-grid equal">
 <fieldset @disabled(!$editable)><legend>Titulares — {{ $settings['formation'] }}</legend><p class="form-help">Selecione onze atletas distintos, com um goleiro na primeira vaga. A posição ocupada influencia o desempenho no motor.</p><div class="lineup-grid">@foreach($roles as $slot=>$role)<div><label for="starter-{{ $slot }}">{{ $slot+1 }}. {{ \App\Domain\Tactics\Tactics::positionLabel($role) }}</label><select id="starter-{{ $slot }}" name="starters[{{ $slot }}]" data-starter-select="{{ $slot }}" required><option value="" data-player-name="Escolha atleta">Selecione um jogador</option>@foreach($players as $player)@php($selected=is_scalar($starters[$slot]??null)&&(string)$starters[$slot]===(string)$player->id) @php($allowedRole=($role==='GK')===$player->canPlay('GK')) @if($allowedRole||$selected)<option value="{{ $player->id }}" data-player-name="{{ $player->name }}" data-player-fitness="{{ $player->fitness }}" @selected($selected) @disabled(!$player->isAvailableOn($career->current_date)&&!$selected)>{{ $player->name }} ({{ \App\Domain\Tactics\Tactics::positionLabel($player->primary_position) }}){{ !$player->isAvailableOn($career->current_date)?' — Indisponível':'' }}{{ !$player->canPlay($role)?' — Fora da posição':'' }}</option>@endif @endforeach</select></div>@endforeach</div></fieldset>
-<fieldset @disabled(!$editable)><legend>Reservas — até {{ $limit }}</legend><p class="form-help">As vagas são opcionais. Um jogador não pode aparecer também entre os titulares.</p><div class="lineup-grid">@for($slot=0;$slot<$limit;$slot++)<div><label for="substitute-{{ $slot }}">Reserva {{ $slot+1 }}</label><select id="substitute-{{ $slot }}" name="substitutes[]"><option value="">Sem reserva</option>@foreach($players as $player)@php($selected=is_scalar($substitutes[$slot]??null)&&(string)$substitutes[$slot]===(string)$player->id)<option value="{{ $player->id }}" @selected($selected) @disabled(!$player->isAvailableOn($career->current_date)&&!$selected)>{{ $player->name }} ({{ \App\Domain\Tactics\Tactics::positionLabel($player->primary_position) }}){{ !$player->isAvailableOn($career->current_date)?' — Indisponível':'' }}</option>@endforeach</select></div>@endfor</div></fieldset>
+<fieldset @disabled(!$editable)><legend>Reservas — até {{ $limit }}</legend><p class="form-help">As vagas são opcionais. Um jogador não pode aparecer também entre os titulares.</p><div class="lineup-grid">@for($slot=0;$slot<$limit;$slot++)<div><label for="substitute-{{ $slot }}">Reserva {{ $slot+1 }}</label><select id="substitute-{{ $slot }}" name="substitutes[]" data-reserve-select="{{ $slot }}"><option value="">Sem reserva</option>@foreach($players as $player)@php($selected=is_scalar($substitutes[$slot]??null)&&(string)$substitutes[$slot]===(string)$player->id)<option value="{{ $player->id }}" data-player-name="{{ $player->name }}" data-player-fitness="{{ $player->fitness }}" data-player-position="{{ $player->primary_position }}" @selected($selected) @disabled(!$player->isAvailableOn($career->current_date)&&!$selected)>{{ $player->name }} ({{ \App\Domain\Tactics\Tactics::positionLabel($player->primary_position) }}){{ !$player->isAvailableOn($career->current_date)?' — Indisponível':'' }}</option>@endforeach</select></div>@endfor</div></fieldset>
 </div>
 <fieldset @disabled(!$editable)><legend>Configurações táticas</legend><div class="form-grid">@foreach(\App\Domain\Tactics\Tactics::OPTIONS as $field=>$options)<div><label for="{{ $field }}">{{ \App\Domain\Tactics\Tactics::LABELS[$field] }}</label><select id="{{ $field }}" name="{{ $field }}" required>@foreach($options as $value=>$label)<option value="{{ $value }}" @selected(old($field,$settings[$field])===$value)>{{ $label }}</option>@endforeach</select></div>@endforeach</div></fieldset>
 <div class="button-row"><button class="primary" type="submit" @disabled(!$editable) @if(!$editable)data-initially-disabled @endif>Salvar escalação e táticas</button><a class="btn" href="{{ route('careers.squad.edit',$career) }}">Recarregar dados salvos</a></div></form>

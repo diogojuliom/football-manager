@@ -4,7 +4,7 @@ namespace App\Domain\Tactics;
 
 class Tactics
 {
-    public const MODEL_VERSION = '1.0.0';
+    public const MODEL_VERSION = '1.1.0';
 
     public const POSITIONS = ['GK', 'CB', 'LB', 'RB', 'DM', 'CM', 'AM', 'LW', 'RW', 'ST'];
 
@@ -167,7 +167,7 @@ class Tactics
         return [
             'version' => self::MODEL_VERSION,
             'coordinateSystem' => ['unit' => 'percent', 'min' => 0, 'max' => 100, 'origin' => 'top-left'],
-            'interaction' => ['mode' => 'fixed', 'draggable' => false, 'swappable' => false],
+            'interaction' => ['mode' => 'fixed', 'draggable' => false, 'swappable' => true, 'mechanism' => 'click'],
             'positions' => $positions,
             'formations' => $formations,
         ];

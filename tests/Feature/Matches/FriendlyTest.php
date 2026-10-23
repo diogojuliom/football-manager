@@ -89,6 +89,40 @@ class FriendlyTest extends TestCase
         $this->assertCount(7, $simulation->input['home']['substitutes']);
     }
 
+    public function test_saved_pre_match_swaps_define_engine_slots_bench_and_ai_opposition_without_being_overwritten(): void
+    {
+        $settings = app(SquadSheet::class)->forCareer($this->career)['settings'];
+        [$settings['starters'][9], $settings['starters'][10]] = [$settings['starters'][10], $settings['starters'][9]];
+
+        $players = $this->career->controlledClub->club->players()->get()->keyBy('id');
+        $reserveSlot = collect($settings['substitutes'])->search(fn (int $id): bool => ! $players[$id]->canPlay('GK'));
+        $this->assertNotFalse($reserveSlot);
+        [$settings['starters'][1], $settings['substitutes'][$reserveSlot]] = [$settings['substitutes'][$reserveSlot], $settings['starters'][1]];
+
+        $outside = $this->career->controlledClub->club->players()
+            ->whereNotIn('id', [...$settings['starters'], ...$settings['substitutes']])
+            ->get()
+            ->first(fn ($player): bool => $player->isAvailableOn($this->career->current_date));
+        $this->assertNotNull($outside);
+        $outsideSlot = $reserveSlot === 0 ? 1 : 0;
+        $settings['substitutes'][$outsideSlot] = $outside->id;
+
+        app(SaveSquad::class)->execute($this->owner, $this->career, $settings);
+        $saved = app(SquadSheet::class)->forCareer($this->career)['settings'];
+        $this->assertSame($settings['starters'], $saved['starters']);
+        $this->assertSame($settings['substitutes'], $saved['substitutes']);
+
+        $simulation = $this->simulate($this->payload());
+        $this->assertSame(array_map('strval', $settings['starters']), array_column($simulation->input['home']['starters'], 'id'));
+        $this->assertSame(array_map('strval', $settings['substitutes']), array_column($simulation->input['home']['substitutes'], 'id'));
+        $this->assertSame('human', $simulation->input['home']['controller']);
+        $this->assertSame('ai', $simulation->input['away']['controller']);
+        $this->assertCount(11, $simulation->input['away']['starters']);
+        $this->assertContains($simulation->input['away']['tactics']['formation'], array_keys(\App\Domain\Tactics\Tactics::FORMATIONS));
+        $this->assertSame($settings['starters'], app(SquadSheet::class)->forCareer($this->career)['settings']['starters']);
+        $this->assertSame($simulation->result_checksum, ReplayHash::of((new FootballMatchEngine)->simulate($simulation->input)));
+    }
+
     public function test_result_page_and_history_render_frozen_statistics_and_events(): void
     {
         $this->saveLineup();
