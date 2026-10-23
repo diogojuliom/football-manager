@@ -1,26 +1,12 @@
 @extends('careers.layout')
 @section('title', 'Finanças — '.$career->name)
 @section('content')
-@php($money = fn ($cents) => 'R$ '.number_format($cents / 100, 2, ',', '.'))
-<p><a href="{{ route('careers.show', $career) }}">Voltar à carreira</a> · <a href="{{ route('careers.tickets.index', $career) }}">Ingressos</a></p>
-<h1>Finanças — {{ $club->name }}</h1>
-<section class="card" aria-label="Resumo financeiro">
-    <h2>Temporada {{ $season->number }}</h2>
-    <p>Saldo inicial da carreira: <strong>{{ $money($club->initial_balance_cents) }}</strong> · Saldo atual: <strong>{{ $money($club->balance_cents) }}</strong>.</p>
-    <p>Bilheteria acumulada: {{ $money($totals->revenue) }} · Despesas operacionais: {{ $money($totals->operating_cost) }}.</p>
-    <p>Investimentos realizados: {{ $money($totals->investments) }} · Resultado financeiro da temporada: <strong>{{ $money($totals->revenue - $totals->operating_cost - $totals->investments) }}</strong>.</p>
-    <p>Receita média por partida em casa: {{ $money($totals->home_matches ? round($totals->revenue / $totals->home_matches) : 0) }} ({{ $totals->home_matches }} jogos).</p>
-    <p><a href="{{ route('careers.stadium.show', $career) }}">Consultar obras e infraestrutura</a></p>
+@php($money = fn($cents) => 'R$ '.number_format($cents/100,2,',','.'))
+@php($seasonResult = $totals->revenue-$totals->operating_cost-$totals->investments)
+<header class="page-header"><div class="page-header-copy"><a class="breadcrumb" href="{{ route('careers.show',$career) }}">← Voltar à carreira</a><p class="eyebrow">Administração · Temporada {{ $season->number }}</p><h1>Finanças — {{ $club->name }}</h1><p>Acompanhe caixa, receitas, custos e investimentos registrados no calendário interno.</p></div><div class="page-actions"><a class="btn" href="{{ route('careers.tickets.index',$career) }}">Gerenciar ingressos</a><a class="btn" href="{{ route('careers.stadium.show',$career) }}">Estádio e obras</a></div></header>
+<div class="stat-grid" aria-label="Resumo financeiro"><article class="stat-card"><span>Saldo atual</span><strong class="{{ $club->balance_cents>=0?'positive':'negative' }}">{{ $money($club->balance_cents) }}</strong><small>Inicial: {{ $money($club->initial_balance_cents) }}</small></article><article class="stat-card"><span>Bilheteria acumulada</span><strong>{{ $money($totals->revenue) }}</strong><small>{{ $totals->home_matches }} jogos em casa</small></article><article class="stat-card"><span>Custos e investimentos</span><strong>{{ $money($totals->operating_cost+$totals->investments) }}</strong><small>{{ $money($totals->operating_cost) }} operacionais</small></article><article class="stat-card"><span>Resultado da temporada</span><strong class="{{ $seasonResult>=0?'positive':'negative' }}">{{ $money($seasonResult) }}</strong><small>Média em casa: {{ $money($totals->home_matches?round($totals->revenue/$totals->home_matches):0) }}</small></article></div>
+<section class="panel"><div class="panel-header"><div><h2>Histórico das movimentações</h2><p>Todos os valores são imutáveis e vinculados à sua origem</p></div><span class="badge">Temporada {{ $season->number }}</span></div>
+@if($history->isEmpty())<p class="empty-state">Nenhum lançamento financeiro realizado nesta carreira.</p>@else
+<div class="table-scroll"><table><thead><tr><th>Data interna</th><th>Origem</th><th>Tipo</th><th>Valor</th><th>Saldo após</th></tr></thead><tbody>@foreach($history as $entry)<tr><td>{{ $entry->occurred_on->format('d/m/Y') }}</td><td>@if($entry->match)<a href="{{ route('careers.results.show',[$career,$entry->match->result]) }}">Jogo em casa contra {{ $entry->match->awayClub->name }}</a>@elseif($entry->kind==='investment')<a href="{{ route('careers.stadium.show',$career) }}">Obra no estádio #{{ substr($entry->source_key,strlen('stadium-project:')) }}</a>@else {{ $entry->source_key }} @endif</td><td>{{ match($entry->kind){'ticket_revenue'=>'Bilheteria','match_operating_cost'=>'Operação do jogo','investment'=>'Investimento',default=>$entry->kind} }}</td><td class="{{ $entry->amount_cents>=0?'positive':'negative' }}">{{ $money($entry->amount_cents) }}</td><td>{{ $money($entry->balance_after_cents) }}</td></tr>@endforeach</tbody></table></div><div class="pagination">{{ $history->links() }}</div>@endif
 </section>
-<h2>Histórico das movimentações</h2>
-@if($history->isEmpty())
-<p>Nenhum lançamento financeiro realizado nesta carreira.</p>
-@else
-<div class="table-scroll"><table><thead><tr><th>Data interna</th><th>Origem</th><th>Tipo</th><th>Valor</th><th>Saldo após</th></tr></thead><tbody>
-@foreach($history as $entry)
-<tr><td>{{ $entry->occurred_on->format('d/m/Y') }}</td><td>@if($entry->match)<a href="{{ route('careers.results.show', [$career, $entry->match->result]) }}">Jogo em casa contra {{ $entry->match->awayClub->name }}</a>@elseif($entry->kind === 'investment')<a href="{{ route('careers.stadium.show', $career) }}">Obra no estádio #{{ substr($entry->source_key, strlen('stadium-project:')) }}</a>@else {{ $entry->source_key }} @endif</td><td>{{ match($entry->kind) { 'ticket_revenue' => 'Bilheteria', 'match_operating_cost' => 'Operação do jogo', 'investment' => 'Investimento', default => $entry->kind } }}</td><td>{{ $money($entry->amount_cents) }}</td><td>{{ $money($entry->balance_after_cents) }}</td></tr>
-@endforeach
-</tbody></table></div>
-{{ $history->links() }}
-@endif
 @endsection

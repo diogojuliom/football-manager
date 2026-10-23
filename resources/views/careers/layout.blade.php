@@ -3,42 +3,88 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', 'Football Manager')</title>
-    <script src="{{ asset('js/progression.js') }}" defer></script>
-    <style>
-        body { font: 1rem/1.5 system-ui, sans-serif; margin: auto; padding: 1.5rem; max-width: 70rem; color: #172c24; background: #f6f8f7; }
-        nav { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; border-bottom: 1px solid #bacbc2; padding-bottom: 1rem; }
-        a { color: #125f40; } main { padding-top: 1rem; } label { display: block; margin-top: 1rem; }
-        input, select, button { font: inherit; padding: .6rem; max-width: 100%; box-sizing: border-box; }
-        input, select { width: 26rem; display: block; } button { cursor: pointer; margin-top: 1rem; }
-        nav button { margin: 0; } table { border-collapse: collapse; width: 100%; background: white; }
-        th, td { text-align: left; padding: .65rem; border-bottom: 1px solid #d8e2dc; }
-        .table-scroll { overflow-x: auto; } .errors { border: 2px solid #9b2525; padding: 1rem; color: #7d1d1d; }
-        .card { border: 1px solid #c5d4ca; padding: 1rem; margin: 1rem 0; background: white; }
-        .primary { background: #125f40; color: white; border: 2px solid #125f40; font-weight: 700; }
-    </style>
+    <meta name="theme-color" content="#08120e">
+    <title>@yield('title', 'Football Manager Web')</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body>
-<nav aria-label="Navegação principal">
-    <a href="{{ route('home') }}">Football Manager</a>
-    @auth
-        <a href="{{ route('careers.index') }}">Minhas carreiras</a>
-        <a href="{{ route('careers.create') }}">Nova carreira</a>
-        <span>{{ auth()->user()->name }}</span>
-        <form method="post" action="{{ route('logout') }}">@csrf<button type="submit">Sair</button></form>
-    @else
-        <a href="{{ route('login') }}">Entrar</a>
-        <a href="{{ route('register') }}">Criar conta</a>
-    @endauth
-</nav>
-<main>
-    @if(session('status'))
-        <p role="status">{{ session('status') }}</p>
-    @endif
-    @if($errors->any())
-        <div class="errors" role="alert"><strong>Confira os dados informados:</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
-    @endif
-    @yield('content')
-</main>
+@php
+    $gameCareer = $career ?? null;
+    $gameClub = $gameCareer?->controlledClub?->club;
+@endphp
+<body class="game-page">
+<a class="skip-link" href="#main-content">Ir para o conteúdo</a>
+<div class="game-shell" data-game-shell>
+    <header class="game-topbar">
+        <button class="icon-button menu-button" type="button" data-menu-toggle aria-controls="game-sidebar" aria-expanded="false" aria-label="Abrir menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <a class="game-brand" href="{{ $gameCareer ? route('careers.show', $gameCareer) : route('home') }}" aria-label="Football Manager Web">
+            <span class="game-brand-mark" aria-hidden="true">FM</span>
+            <span><strong>FOOTBALL MANAGER</strong><small>WEB EDITION</small></span>
+        </a>
+        @if($gameCareer)
+            <div class="topbar-context" aria-label="Contexto da carreira">
+                <span>{{ $gameCareer->current_date->format('d/m/Y') }}</span>
+                <strong>Temporada {{ $gameCareer->current_season_number }}</strong>
+            </div>
+        @endif
+        @auth
+            <div class="topbar-account">
+                <span class="user-avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 2)) }}</span>
+                <span class="user-name">{{ auth()->user()->name }}</span>
+                <form method="post" action="{{ route('logout') }}" data-loading-form data-loading-label="Saindo…">
+                    @csrf
+                    <button class="icon-button" type="submit" aria-label="Encerrar sessão" title="Encerrar sessão"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3M14 4h4a3 3 0 013 3v10a3 3 0 01-3 3h-4"/></svg></button>
+                </form>
+            </div>
+        @endauth
+    </header>
+    <div class="sidebar-scrim" data-menu-close></div>
+    <aside class="game-sidebar" id="game-sidebar" aria-label="Navegação da carreira">
+        @if($gameCareer && $gameClub)
+            <div class="club-identity">
+                <span class="club-monogram" aria-hidden="true">{{ collect(explode(' ', $gameClub->name))->map(fn ($word) => mb_substr($word, 0, 1))->take(3)->implode('') }}</span>
+                <span><strong>{{ $gameClub->name }}</strong><small>{{ $gameCareer->name }}</small></span>
+            </div>
+            <nav class="game-nav">
+                <p class="nav-label">Carreira</p>
+                <a @class(['active' => request()->routeIs('careers.show')]) href="{{ route('careers.show', $gameCareer) }}"><span aria-hidden="true">⌂</span>Visão geral</a>
+                <a @class(['active' => request()->routeIs('careers.squad.*')]) href="{{ route('careers.squad.edit', $gameCareer) }}"><span aria-hidden="true">♟</span>Elenco e táticas</a>
+                <a @class(['active' => request()->routeIs('careers.stadium.*')]) href="{{ route('careers.stadium.show', $gameCareer) }}"><span aria-hidden="true">▰</span>Estádio e obras</a>
+                <a @class(['active' => request()->routeIs('careers.tickets.*', 'careers.matches.tickets.*')]) href="{{ route('careers.tickets.index', $gameCareer) }}"><span aria-hidden="true">◇</span>Ingressos</a>
+                <a @class(['active' => request()->routeIs('careers.finances.*')]) href="{{ route('careers.finances.show', $gameCareer) }}"><span aria-hidden="true">$</span>Finanças</a>
+                <a @class(['active' => request()->routeIs('careers.friendlies.*')]) href="{{ route('careers.friendlies.create', $gameCareer) }}"><span aria-hidden="true">⚽</span>Amistosos</a>
+                <p class="nav-label">Jogo</p>
+                <a @class(['active' => request()->routeIs('careers.matches.pre-match')]) href="{{ route('careers.show', $gameCareer) }}#calendario"><span aria-hidden="true">▦</span>Calendário</a>
+                <a href="{{ route('careers.show', $gameCareer) }}#classificacao"><span aria-hidden="true">≡</span>Classificação</a>
+                <a @class(['active' => request()->routeIs('careers.results.*')]) href="{{ route('careers.show', $gameCareer) }}#estatisticas"><span aria-hidden="true">↗</span>Estatísticas</a>
+                <a href="{{ route('careers.show', $gameCareer) }}#historico"><span aria-hidden="true">◷</span>Histórico</a>
+            </nav>
+        @else
+            <nav class="game-nav guest-nav">
+                <p class="nav-label">Football Manager</p>
+                <a href="{{ route('home') }}">Início</a>
+                @auth<a href="{{ route('careers.index') }}">Minhas carreiras</a><a href="{{ route('careers.create') }}">Nova carreira</a>
+                @else<a href="{{ route('login') }}">Entrar</a><a href="{{ route('register') }}">Criar conta</a>@endauth
+            </nav>
+        @endif
+        <div class="sidebar-footer">
+            @if($gameCareer)<span>Calendário interno</span><strong>Avança somente por sua ação</strong>
+            @else<span>Football Manager Web</span><strong>Construa sua história</strong>@endif
+        </div>
+    </aside>
+    <main class="game-main" id="main-content" tabindex="-1">
+        @if(session('status'))
+            <div class="notice notice-success" role="status" data-dismissible><span aria-hidden="true">✓</span><p>{{ session('status') }}</p><button type="button" aria-label="Fechar aviso" data-dismiss>×</button></div>
+        @endif
+        @if($errors->any())
+            <div class="notice notice-error" role="alert" id="form-errors"><span aria-hidden="true">!</span><div><strong>Confira os dados informados:</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div></div>
+        @endif
+        @yield('content')
+    </main>
+</div>
 </body>
 </html>

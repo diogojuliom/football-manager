@@ -112,7 +112,7 @@ composer validate --strict --no-check-publish
 npm ci
 npm audit
 npm run build
-node --check public/js/progression.js
+node --check resources/js/app.js
 git diff --check
 ```
 

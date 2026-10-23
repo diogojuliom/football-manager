@@ -1,28 +1,15 @@
 @extends('careers.layout')
 @section('title', 'Pré-jogo — '.$career->name)
 @section('content')
-<p><a href="{{ route('careers.show', $career) }}">Voltar à carreira</a></p>
-<h1>Pré-jogo: {{ $match->homeClub->name }} × {{ $match->awayClub->name }}</h1>
-<p>{{ $career->current_date->format('d/m/Y') }} · Rodada {{ $match->round }}</p>
-<p>Revise os titulares, reservas, condição física e táticas antes de confirmar. A partida só começa com sua confirmação.</p>
-<p><a href="{{ route('careers.squad.edit', $career) }}">Revisar escalação e táticas</a></p>
-<p>A confirmação registra o resultado oficial, aplica desgaste e suspensões e conclui os outros jogos desta data. A carreira permanece no mesmo dia após a partida.</p>
-<p>{{ $forecast['stadium_name'] }} · Capacidade disponível: {{ number_format($forecast['input']['capacity'], 0, ',', '.') }} · Importância: {{ $forecast['importance'] }}/100.</p>
-<p>Previsão de público: <strong>{{ number_format($forecast['forecast'], 0, ',', '.') }}</strong>. O público realizado e a bilheteria serão registrados ao confirmar a partida.</p>
-@if($match->home_club_id === $career->controlledClub->career_club_id)
-    @include('careers.partials.match-ticket-form')
-@else
-    <p>O mandante define os ingressos desta partida. Seu clube joga como visitante.</p>
-@endif
+<header class="page-header"><div class="page-header-copy"><a class="breadcrumb" href="{{ route('careers.show',$career) }}">← Voltar à carreira</a><p class="eyebrow">Dia de jogo · Rodada {{ $match->round }}</p><h1>Preparação para a partida</h1><p>Revise a equipe, a estratégia e os ingressos antes da confirmação. A partida só começa quando você autorizar.</p></div><a class="btn" href="{{ route('careers.squad.edit',$career) }}">Revisar escalação e táticas</a></header>
+<section class="score-hero" aria-labelledby="match-title"><span class="badge">{{ $career->current_date->format('d/m/Y') }}</span><div class="match-up" id="match-title"><strong>{{ $match->homeClub->name }}</strong><span class="score"><em>pré</em> × <em>jogo</em></span><strong>{{ $match->awayClub->name }}</strong></div><p>{{ $forecast['stadium_name'] }} · Capacidade disponível: {{ number_format($forecast['input']['capacity'],0,',','.') }}</p></section>
+<div class="content-grid equal">
+    <section class="panel"><div class="panel-header"><div><h2>Informações da partida</h2><p>Planejamento esportivo e operacional</p></div></div><dl class="data-list"><div><dt>Rodada</dt><dd>{{ $match->round }}</dd></div><div><dt>Mando</dt><dd>{{ $match->home_club_id === $career->controlledClub->career_club_id ? 'Seu clube joga em casa' : 'Seu clube joga como visitante' }}</dd></div><div><dt>Importância</dt><dd>{{ $forecast['importance'] }}/100</dd></div><div><dt>Previsão de público</dt><dd>{{ number_format($forecast['forecast'],0,',','.') }}</dd></div></dl><p class="form-help">A confirmação registra o resultado oficial, aplica desgaste e suspensões e conclui os outros jogos desta data. A carreira permanece no mesmo dia após a partida.</p></section>
+    @if($match->home_club_id === $career->controlledClub->career_club_id) @include('careers.partials.match-ticket-form') @else <section class="panel"><div class="panel-header"><h2>Ingressos</h2></div><p>O mandante define os ingressos desta partida. Seu clube joga como visitante.</p></section> @endif
+</div>
 @if($decision)
-<p>Confirme primeiro o acontecimento pendente no dashboard.</p>
+<div class="notice notice-warning" role="alert"><span>!</span><p>Confirme primeiro o acontecimento pendente no dashboard.</p></div>
 @else
-<form data-progression method="post" action="{{ route('careers.progression.store', $career) }}">
-    @csrf
-    <input type="hidden" name="request_id" value="{{ $requestId }}">
-    <input type="hidden" name="revision" value="{{ $career->progression_revision }}">
-    <input type="hidden" name="match_id" value="{{ $match->id }}">
-    <button class="primary" name="action" value="PLAY_MATCH" type="submit">Confirmar e jogar partida</button>
-</form>
+<section class="panel"><div class="panel-header"><div><h2>Confirmação</h2><p>Esta ação inicia a simulação oficial e não deve ser enviada mais de uma vez.</p></div></div><form data-progression method="post" action="{{ route('careers.progression.store',$career) }}">@csrf<input type="hidden" name="request_id" value="{{ $requestId }}"><input type="hidden" name="revision" value="{{ $career->progression_revision }}"><input type="hidden" name="match_id" value="{{ $match->id }}"><button class="primary" name="action" value="PLAY_MATCH" type="submit" data-loading-label="Simulando partida…">Confirmar e jogar partida</button></form></section>
 @endif
 @endsection

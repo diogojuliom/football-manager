@@ -9,6 +9,7 @@ use App\Domain\Career\Models\Career;
 use App\Domain\Career\Models\CareerEvent;
 use App\Domain\Career\Models\CareerOperation;
 use App\Domain\Career\Models\CompetitionEdition;
+use App\Domain\Career\Models\StadiumProject;
 use App\Domain\GameDatabase\Models\GameDatabaseVersion;
 use App\Http\Requests\StoreCareerRequest;
 use Illuminate\Http\Request;
@@ -60,8 +61,9 @@ class CareerController extends Controller
         $pendingOperation = CareerOperation::where('career_id', $career->id)->where('status', 'pending')->first();
         $events = CareerEvent::where('career_id', $career->id)->orderByDesc('scheduled_on')->orderByDesc('id')->take(10)->get();
         $completedSeasons = $career->seasons->where('status', 'completed')->sortByDesc('number');
+        $activeWork = StadiumProject::where('career_id', $career->id)->where('status', 'active')->first();
         $requestId = (string) Str::uuid();
 
-        return view('careers.show', compact('career', 'matches', 'season', 'displaySeason', 'edition', 'standings', 'scorers', 'nextMatch', 'nextEvent', 'decision', 'pendingOperation', 'events', 'completedSeasons', 'requestId'));
+        return view('careers.show', compact('career', 'matches', 'season', 'displaySeason', 'edition', 'standings', 'scorers', 'nextMatch', 'nextEvent', 'decision', 'pendingOperation', 'events', 'completedSeasons', 'activeWork', 'requestId'));
     }
 }

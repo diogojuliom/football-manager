@@ -1,19 +1,10 @@
 @extends('careers.layout')
 @section('title', 'Estádio e torcida — '.$career->name)
 @section('content')
-<p><a href="{{ route('careers.show', $career) }}">Voltar à carreira</a></p>
-<p><a href="{{ route('careers.tickets.index', $career) }}">Gerenciar ingressos</a> · <a href="{{ route('careers.finances.show', $career) }}">Painel financeiro</a></p>
-<h1>Estádio e torcida — {{ $club->name }}</h1>
-<section class="card">
-    <h2>{{ $club->stadium->name }}</h2>
-    <p>Capacidade total: {{ number_format($club->stadium->capacity, 0, ',', '.') }} · Lugares disponíveis: {{ number_format($club->stadium->available_capacity, 0, ',', '.') }} · Infraestrutura: nível {{ $club->stadium->infrastructure_level }}.</p>
-    <p>Torcida potencial: {{ number_format($club->support->potential_supporters, 0, ',', '.') }} · Fidelidade: {{ $club->support->loyalty }}/100 · Engajamento: {{ $club->support->engagement }}/100.</p>
-    <p>Temporada atual — partidas oficiais em casa: {{ $averages->games }} · Público médio: {{ number_format($averages->average_attendance ?? 0, 0, ',', '.') }} · Ocupação média: {{ number_format(($averages->average_occupancy_bps ?? 0) / 100, 1, ',', '.') }}%.</p>
-    <p>Preço padrão: R$ {{ number_format($club->default_ticket_price_cents / 100, 2, ',', '.') }} · Receita acumulada de bilheteria: R$ {{ number_format($revenue / 100, 2, ',', '.') }}.</p>
-    @if($nextHome)
-    <p>Próximo jogo em casa: {{ $nextHome->scheduled_on->format('d/m/Y') }} contra {{ $nextHome->awayClub->name }}. Previsão atual: {{ number_format($forecast['forecast'], 0, ',', '.') }} torcedores; importância {{ $forecast['importance'] }}/100; receita bruta prevista: R$ {{ number_format($forecast['forecast'] * $forecast['input']['price_cents'] / 100, 2, ',', '.') }}.</p>
-    @endif
-</section>
+<header class="page-header"><div class="page-header-copy"><a class="breadcrumb" href="{{ route('careers.show', $career) }}">← Voltar à carreira</a><p class="eyebrow">Patrimônio e torcida</p><h1>Estádio — {{ $club->stadium->name }}</h1><p>Administre a casa do {{ $club->name }}, acompanhe a torcida e planeje melhorias de longo prazo.</p></div><div class="page-actions"><a class="btn" href="{{ route('careers.tickets.index', $career) }}">Gerenciar ingressos</a><a class="btn" href="{{ route('careers.finances.show', $career) }}">Painel financeiro</a></div></header>
+<section class="stadium-hero" aria-label="Ilustração do estádio"><div><span class="badge">Casa do {{ $club->name }}</span><h2>{{ $club->stadium->name }}</h2><p>{{ number_format($club->stadium->available_capacity, 0, ',', '.') }} lugares disponíveis · Infraestrutura nível {{ $club->stadium->infrastructure_level }}</p></div><span aria-hidden="true">▰</span></section>
+<div class="stat-grid"><article class="stat-card"><span>Capacidade total</span><strong>{{ number_format($club->stadium->capacity, 0, ',', '.') }}</strong><small>{{ number_format($club->stadium->available_capacity, 0, ',', '.') }} disponíveis</small></article><article class="stat-card"><span>Público médio</span><strong>{{ number_format($averages->average_attendance ?? 0, 0, ',', '.') }}</strong><small>{{ number_format(($averages->average_occupancy_bps ?? 0) / 100, 1, ',', '.') }}% de ocupação</small></article><article class="stat-card"><span>Torcida potencial</span><strong>{{ number_format($club->support->potential_supporters, 0, ',', '.') }}</strong><small>Fidelidade {{ $club->support->loyalty }}/100 · Engajamento {{ $club->support->engagement }}/100</small></article><article class="stat-card"><span>Receita acumulada de bilheteria</span><strong>R$ {{ number_format($revenue / 100, 2, ',', '.') }}</strong><small>Preço padrão: R$ {{ number_format($club->default_ticket_price_cents / 100, 2, ',', '.') }}</small></article></div>
+@if($nextHome)<section class="panel"><div class="panel-header"><div><h2>Próximo jogo em casa</h2><p>{{ $nextHome->scheduled_on->format('d/m/Y') }} contra {{ $nextHome->awayClub->name }}</p></div><a href="{{ route('careers.tickets.index', ['career'=>$career,'match_id'=>$nextHome->id]) }}">Definir ingressos</a></div><p>Previsão atual: <strong>{{ number_format($forecast['forecast'], 0, ',', '.') }} torcedores</strong> · Importância {{ $forecast['importance'] }}/100 · Receita bruta prevista: R$ {{ number_format($forecast['forecast'] * $forecast['input']['price_cents'] / 100, 2, ',', '.') }}.</p></section>@endif
 <section class="card" aria-labelledby="stadium-works-title">
     <h2 id="stadium-works-title">Obras e infraestrutura</h2>
     <p>Data interna: {{ $career->current_date->format('d/m/Y') }} · Saldo: R$ {{ number_format($club->balance_cents / 100, 2, ',', '.') }}. Os prazos avançam somente quando você confirma a progressão da carreira.</p>
@@ -28,7 +19,7 @@
                 <p>Investimento: R$ {{ number_format($offer['cost_cents'] / 100, 2, ',', '.') }} · Prazo: {{ $offer['days'] }} dias internos · Previsão se iniciar hoje: {{ $career->current_date->addDays($offer['days'])->format('d/m/Y') }}.</p>
                 <p>{{ $offer['capacity_added'] ? '+'.number_format($offer['capacity_added'], 0, ',', '.').' lugares' : '+1 nível de infraestrutura, com efeito na atratividade da torcida' }}.</p>
                 @if($club->balance_cents >= $offer['cost_cents'])
-                    <form method="post" action="{{ route('careers.stadium.projects.store', $career) }}" onsubmit="this.querySelector('button').textContent = 'Iniciando obra…'; this.querySelector('button').disabled = true">
+                    <form method="post" action="{{ route('careers.stadium.projects.store', $career) }}" data-loading-form data-loading-label="Iniciando obra…">
                         @csrf
                         <input type="hidden" name="type" value="{{ $offer['id'] }}">
                         <input type="hidden" name="revision" value="{{ $career->progression_revision }}">
@@ -52,7 +43,7 @@
         <tr><td>{{ $work->type === 'expansion' ? 'Ampliação' : 'Modernização' }}</td><td>{{ $work->started_on->format('d/m/Y') }}</td><td>{{ $work->due_on->format('d/m/Y') }}</td><td>{{ $work->status === 'completed' ? 'Concluída em '.$work->completed_on->format('d/m/Y') : 'Em andamento' }}</td><td>R$ {{ number_format($work->cost_cents / 100, 2, ',', '.') }}</td><td>{{ $work->capacity_added ? '+'.number_format($work->capacity_added, 0, ',', '.').' lugares' : '+'.$work->infrastructure_added.' nível de infraestrutura' }}</td></tr>
     @endforeach
     </tbody></table></div>
-    {{ $works->links() }}
+    <div class="pagination">{{ $works->links() }}</div>
 @endif
 <h2>Histórico de jogos oficiais em casa</h2>
 @if($history->isEmpty())
@@ -63,7 +54,7 @@
 <tr><td>{{ $entry->played_on->format('d/m/Y') }}</td><td>{{ $entry->match->awayClub->name }}</td><td>{{ number_format($entry->forecast, 0, ',', '.') }}</td><td>{{ number_format($entry->realized, 0, ',', '.') }}</td><td>{{ number_format($entry->occupancy_bps / 100, 1, ',', '.') }}%</td><td>{{ $entry->importance }}/100</td><td>R$ {{ number_format($entry->ticket_price_cents / 100, 2, ',', '.') }}</td><td>{{ isset($receipts[$entry->match_id]) ? 'R$ '.number_format($receipts[$entry->match_id] / 100, 2, ',', '.') : 'Sem lançamento' }}</td></tr>
 @endforeach
 </tbody></table></div>
-{{ $history->links() }}
+<div class="pagination">{{ $history->links() }}</div>
 @endif
 @if($friendlies->isNotEmpty())
 <h2>Amistosos recentes em casa</h2>
