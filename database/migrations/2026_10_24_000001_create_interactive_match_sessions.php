@@ -37,7 +37,7 @@ return new class extends Migration
             $table->unsignedInteger('result_revision');
             $table->json('response');
             $table->timestamps();
-            $table->unique(['interactive_match_session_id', 'request_id']);
+            $table->unique(['interactive_match_session_id', 'request_id'], 'interactive_request_id_unique');
             $table->foreign(['interactive_match_session_id', 'career_id'], 'interactive_request_session_foreign')
                 ->references(['id', 'career_id'])->on('interactive_match_sessions')->restrictOnDelete();
         });

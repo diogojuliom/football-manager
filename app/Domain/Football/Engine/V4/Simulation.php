@@ -30,6 +30,16 @@ final class Simulation
         } else {
             $this->assertState($state);
             $this->state = $state;
+            // MySQL stores JSON objects in its own key order. Restore the published
+            // snapshot order so resumed matches produce the same player list/hash
+            // as uninterrupted simulations.
+            foreach (['home', 'away'] as $side) {
+                $players = [];
+                foreach ([...$input[$side]['starters'], ...$input[$side]['substitutes']] as $player) {
+                    $players[$player['id']] = $this->state['teams'][$side]['players'][$player['id']];
+                }
+                $this->state['teams'][$side]['players'] = $players;
+            }
             $this->random = new SeededRandom(self::VERSION.':'.$input['seed'], (int) $state['rng_counter']);
         }
     }

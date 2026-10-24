@@ -57,6 +57,34 @@ class IncrementalDeterminismTest extends TestCase
         }
     }
 
+    public function test_mysql_json_player_key_order_does_not_change_a_resumed_result(): void
+    {
+        $input = $this->input('mysql-json-order');
+        $simulation = new Simulation($input);
+        $simulation->advance(35);
+        $state = $simulation->state();
+        $reordered = $state;
+        foreach (['home', 'away'] as $side) {
+            krsort($reordered['teams'][$side]['players']);
+            $this->assertNotSame(
+                array_keys($state['teams'][$side]['players']),
+                array_keys($reordered['teams'][$side]['players']),
+            );
+        }
+
+        $continuous = new Simulation($input, $state);
+        $restored = new Simulation($input, $reordered);
+        while (! in_array($continuous->state()['status'], ['finished', 'abandoned'], true)) {
+            $continuous->advance(120, true);
+        }
+        while (! in_array($restored->state()['status'], ['finished', 'abandoned'], true)) {
+            $restored->advance(120, true);
+        }
+
+        $this->assertSame($continuous->result(), $restored->result());
+        $this->assertSame($continuous->state()['rng_counter'], $restored->state()['rng_counter']);
+    }
+
     private function input(string $seed): array
     {
         $input = MatchFixture::make($seed);

@@ -9,6 +9,11 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // MySQL may use the unique index below to enforce the career_id foreign key.
+        // Keep an explicit supporting index while replacing that unique constraint.
+        Schema::table('career_players', function (Blueprint $table) {
+            $table->index('career_id', 'career_players_lifecycle_career_index');
+        });
         Schema::table('career_players', function (Blueprint $table) {
             $table->dropUnique('career_players_career_id_player_template_id_unique');
             $table->string('origin_key', 100)->nullable();
@@ -27,6 +32,9 @@ return new class extends Migration
             $table->unique(['career_id', 'origin_key'], 'career_player_origin_unique');
             $table->index(['career_id', 'career_club_id', 'retired_on'], 'career_active_players_index');
         });
+        Schema::table('career_players', function (Blueprint $table) {
+            $table->dropIndex('career_players_lifecycle_career_index');
+        });
     }
 
     public function down(): void
@@ -38,10 +46,16 @@ return new class extends Migration
             $table->dropColumn('transition_summary');
         });
         Schema::table('career_players', function (Blueprint $table) {
+            $table->index('career_id', 'career_players_lifecycle_career_index');
+        });
+        Schema::table('career_players', function (Blueprint $table) {
             $table->dropUnique('career_player_origin_unique');
             $table->dropIndex('career_active_players_index');
             $table->dropColumn(['origin_key', 'retired_on', 'joined_season_number']);
             $table->unique(['career_id', 'player_template_id']);
+        });
+        Schema::table('career_players', function (Blueprint $table) {
+            $table->dropIndex('career_players_lifecycle_career_index');
         });
     }
 };
