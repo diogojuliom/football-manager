@@ -301,6 +301,53 @@ class InteractiveMatchTest extends TestCase
         $this->assertSame(ReplayHash::of($finished['result']), ReplayHash::of((new FootballMatchEngine)->simulate($session->fresh()->input)));
     }
 
+    public function test_finish_at_minute_60_matches_incremental_play_after_the_same_human_decisions(): void
+    {
+        $service = app(InteractiveMatchService::class);
+        $session = $service->start($this->owner, $this->career, $this->match());
+        $current = $service->control($this->owner, $this->career, $session, $this->request(0, ['action' => 'resume']));
+        $current = $service->advance($this->owner, $this->career, $session,
+            $this->request($current['revision'], ['minutes' => 45]));
+        $current = $service->control($this->owner, $this->career, $session,
+            $this->request($current['revision'], ['action' => 'resume']));
+        $current = $service->advance($this->owner, $this->career, $session,
+            $this->request($current['revision'], ['minutes' => 15]));
+        $current = $service->control($this->owner, $this->career, $session,
+            $this->request($current['revision'], ['action' => 'pause']));
+        $current = $service->decide($this->owner, $this->career, $session, $this->request($current['revision'], [
+            'type' => 'tactics',
+            'payload' => ['formation' => '4-3-3', 'style' => 'total_attack', 'attack_direction' => 'wings', 'marking' => 'heavy'],
+        ]));
+
+        $this->assertSame(60, $current['minute']);
+        $this->assertTrue($current['paused']);
+        $confirmedEvents = $current['state']['events'];
+        $incremental = new Simulation($session->fresh()->input, $current['state']);
+        while (! in_array($incremental->state()['status'], ['finished', 'abandoned'], true)) {
+            $incremental->advance(1);
+        }
+        $expected = $incremental->result();
+
+        $finishRequest = $this->request($current['revision']);
+        $finished = $service->finish($this->owner, $this->career, $session, $finishRequest);
+        $requestCount = $session->fresh()->requests()->count();
+
+        $this->assertSame($expected, $finished['result']);
+        $this->assertSame($confirmedEvents, array_slice($finished['result']['events'], 0, count($confirmedEvents)));
+        $this->assertCount(1, array_filter(
+            $finished['result']['decisions'],
+            fn (array $decision): bool => $decision['actor'] === 'human',
+        ));
+        $this->assertSame(range(1, count($finished['result']['events'])), array_column($finished['result']['events'], 'sequence'));
+        $this->assertCount(1, array_filter($finished['result']['events'], fn (array $event): bool => $event['type'] === 'full_time'));
+        $this->assertSame($finished, $service->finish($this->owner, $this->career, $session, $finishRequest));
+        $this->assertSame($requestCount, $session->fresh()->requests()->count());
+        $this->assertSame(
+            ReplayHash::of($finished['result']),
+            ReplayHash::of((new FootballMatchEngine)->simulate($session->fresh()->input)),
+        );
+    }
+
     public function test_stale_tabs_conflicting_idempotency_and_other_users_cannot_mutate_a_session(): void
     {
         $service = app(InteractiveMatchService::class);
