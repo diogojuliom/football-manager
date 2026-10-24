@@ -19,8 +19,10 @@ use App\Domain\GameDatabase\Models\ClubTemplate;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 use Tests\TestCase;
 
 class InteractiveMatchTest extends TestCase
@@ -241,6 +243,62 @@ class InteractiveMatchTest extends TestCase
         $official = OfficialMatchResult::where('match_id', $match->id)->sole();
         $this->assertSame(Simulation::VERSION, $official->engine_version);
         $this->assertSame($official->result_checksum, ReplayHash::of((new FootballMatchEngine)->simulate($official->input)));
+    }
+
+    public function test_disconnect_and_failed_block_preserve_the_last_confirmed_rng_state_for_recovery(): void
+    {
+        $service = app(InteractiveMatchService::class);
+        $session = $service->start($this->owner, $this->career, $this->match());
+        $current = $service->control($this->owner, $this->career, $session, $this->request(0, ['action' => 'resume']));
+        $current = $service->advance($this->owner, $this->career, $session, $this->request($current['revision'], ['minutes' => 35]));
+        $at35 = $session->fresh();
+        $confirmed = $service->response($at35);
+        $requestCount = $at35->requests()->count();
+        $updatedAt = $at35->updated_at->toJSON();
+
+        $this->post('/logout');
+        $this->travel(12)->hours();
+        $disconnected = $session->fresh();
+        $this->assertSame($confirmed, $service->response($disconnected));
+        $this->assertSame($requestCount, $disconnected->requests()->count());
+        $this->assertSame($updatedAt, $disconnected->updated_at->toJSON());
+        $this->travelBack();
+        $this->actingAs($this->owner);
+
+        $current = $service->advance($this->owner, $this->career, $session,
+            $this->request($current['revision'], ['minutes' => 10]));
+        $this->assertSame(45, $current['minute']);
+        $current = $service->control($this->owner, $this->career, $session,
+            $this->request($current['revision'], ['action' => 'resume']));
+        $current = $service->advance($this->owner, $this->career, $session,
+            $this->request($current['revision'], ['minutes' => 20]));
+        $this->assertSame(65, $current['minute']);
+
+        $at65 = $service->response($session->fresh());
+        $requestCount = $session->fresh()->requests()->count();
+        $failedBlock = $this->request($current['revision'], ['minutes' => 5]);
+        $event = 'eloquent.saving: '.InteractiveMatchSession::class;
+        Event::listen($event, fn (InteractiveMatchSession $saving) => $saving->minute === 70
+            ? throw new RuntimeException('Interrupted incremental block') : null);
+        try {
+            $service->advance($this->owner, $this->career, $session, $failedBlock);
+            $this->fail('A falha injetada deveria interromper o bloco.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Interrupted incremental block', $exception->getMessage());
+        } finally {
+            Event::forget($event);
+        }
+
+        $this->assertSame($at65, $service->response($session->fresh()));
+        $this->assertSame($requestCount, $session->fresh()->requests()->count());
+        $this->assertSame($at65['state']['rng_counter'], $session->fresh()->state['rng_counter']);
+
+        $recovered = $service->advance($this->owner, $this->career, $session, $failedBlock);
+        $this->assertSame(70, $recovered['minute']);
+        $this->assertGreaterThan($at65['state']['rng_counter'], $recovered['state']['rng_counter']);
+        $finished = $service->finish($this->owner, $this->career, $session,
+            $this->request($recovered['revision']));
+        $this->assertSame(ReplayHash::of($finished['result']), ReplayHash::of((new FootballMatchEngine)->simulate($session->fresh()->input)));
     }
 
     public function test_stale_tabs_conflicting_idempotency_and_other_users_cannot_mutate_a_session(): void
