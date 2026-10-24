@@ -6,7 +6,7 @@ Execute `php artisan migrate --seed` na conexão de desenvolvimento. Na nuvem, a
 
 Abra uma carreira, salve a escalação em **Gerenciar elenco e táticas** e escolha **Simular amistoso**. Selecione outro clube da carreira e confirme o código da simulação (seed). O resultado apresenta placar, eventos cronológicos, estatísticas das equipes e dos atletas e condição física final simulada. Os últimos dez amistosos ficam acessíveis na tela de criação; os resultados anteriores continuam disponíveis por suas URLs autorizadas.
 
-Os amistosos são simulações de treinamento: não avançam o calendário, não alteram jogadores, saldos, suspensões ou partidas da liga. A escalação humana precisa estar salva e válida. Com a Entrega 05, o adversário usa seleção e estratégias adaptativas; também há um formulário **IA contra IA**, independente da escalação humana. Consulte [a documentação da IA](ia-dos-clubes.md). A Entrega 06 integrou [partidas oficiais nas datas do calendário](competicoes-e-progressao.md), com classificação e efeitos físicos aplicados uma única vez.
+Os amistosos são simulações de treinamento: não avançam o calendário, não alteram jogadores, saldos, suspensões ou partidas da liga. A escalação humana precisa estar salva e válida. Com a Entrega 05, o adversário usa seleção e estratégias adaptativas; também há um formulário **IA contra IA**, independente da escalação humana. Consulte [a documentação da IA](ia-dos-clubes.md). A Entrega 06 integrou [partidas oficiais nas datas do calendário](competicoes-e-progressao.md), com classificação e efeitos físicos aplicados uma única vez. No pré-jogo oficial do usuário, a central da partida usa o motor incremental V4 para acompanhar e intervir no confronto antes da consolidação.
 
 ## Núcleo independente
 
@@ -33,7 +33,15 @@ A primeira vaga exige goleiro e as demais exigem jogadores de linha. O adaptador
 
 ## Versão e reprodução
 
-As versões `1.0.0` e `2.0.0` permanecem suportadas para reproduzir partidas históricas. A versão atual é `3.0.0`, em `Engine/V3/Simulation.php`, e acrescenta perfis próprios de ataque, defesa e controle para cada formação. Em V2 e V3, cada equipe informa `controller=human|ai` (padrão `human`), e a IA usa `ai_policy_version=1.0.0`. A mesma entrada normalizada, seed e versão produz o mesmo resultado. `SeededRandom` gera uma sequência local por SHA-256 de seed e contador, sem afetar outros sorteios do processo. A seed aceita de 1 a 64 letras ASCII, números, hífens ou sublinhados.
+As versões `1.0.0`, `2.0.0` e `3.0.0` permanecem suportadas para reproduzir partidas históricas. A versão padrão dos fluxos rápidos continua sendo `3.0.0`. A partida interativa usa `4.0.0`, em `Engine/V4/Simulation.php`, sem alterar snapshots anteriores. Em V2–V4, cada equipe informa `controller=human|ai` (padrão `human`), e a IA usa `ai_policy_version=1.0.0`. A mesma entrada normalizada, seed, versão e sequência de decisões produz o mesmo resultado. `SeededRandom` gera uma sequência local por SHA-256 de seed e contador; a V4 persiste esse contador após cada avanço. A seed aceita de 1 a 64 letras ASCII, números, hífens ou sublinhados.
+
+## Motor incremental V4
+
+`Engine/V4/Simulation` processa somente os minutos solicitados e devolve um estado serializável com minuto, acréscimos, placar, eventos, estatísticas, escalações, banco, condição física, táticas, decisões e contador do RNG. A aplicação grava esse estado em `interactive_match_sessions`; cada mutação curta usa transação, bloqueio de linha, revisão otimista e UUID idempotente em `interactive_match_requests`. Nenhum processo PHP permanece aberto durante os cinco minutos de apresentação e nenhum minuto avança sem uma requisição autenticada.
+
+O frontend apresenta um minuto a cada `300000 / 90 / velocidade` milissegundos, com velocidades de 0,5× a 2×. A velocidade não faz parte da entrada esportiva. O intervalo interrompe automaticamente aos 45 minutos; **Simular até o final** passa pelos minutos restantes no backend, preservando os mesmos eventos de intervalo e a reprodução exata. Decisões no minuto atual são registradas em ordem e só entram nos cálculos dos minutos seguintes.
+
+O treinador pode trocar titulares de função, realizar substituições e alterar formação, estilo, direção dos ataques e marcação enquanto a partida está pausada. O motor usa adequação posicional, atributos e condição dos novos participantes. Substituições respeitam quantidade e janelas congeladas na edição; várias trocas na mesma pausa consomem uma janela. As instruções alteram ataque, defesa, controle, desgaste e risco disciplinar. Lesões têm duração determinística e são aplicadas à carreira na consolidação oficial.
 
 Cada versão possui uma fixture de referência com hash de resultado fixo em teste, protegendo contra mudanças silenciosas na versão publicada. Alterações futuras nas regras/coeficientes exigem uma versão nova e manutenção da implementação anterior e das políticas de IA para reproduzir seus snapshots. Versões desconhecidas são rejeitadas.
 
@@ -74,7 +82,7 @@ A saída contém versão, seed, status, minutos, bônus de mando, eventos em ord
 
 `SimulateFriendly` autoriza o proprietário, bloqueia a carreira, valida o adversário e a escalação e grava o resultado em uma transação. Cada formulário possui `request_id` UUID. Repetir a mesma solicitação retorna o mesmo registro; reutilizar a chave com seed/adversário diferentes é rejeitado. Uma falha não deixa resultados parciais. Rotas com uma simulação de outra carreira são rejeitadas.
 
-As tabelas oficiais `matches` continuam como calendário da liga. A Entrega 06 registra seus resultados em `official_match_results`, aplicando desgaste, suspensões e classificação durante a operação autorizada, uma única vez. A integração financeira pertence às entregas correspondentes.
+As tabelas oficiais `matches` continuam como calendário da liga. A Entrega 06 registra seus resultados em `official_match_results`, aplicando desgaste, lesões, suspensões, público, finanças e classificação durante a operação autorizada, uma única vez. Sessões interativas concluídas são reproduzidas e conferidas antes da consolidação e depois marcadas como finalizadas.
 
 ## Validação
 
@@ -82,7 +90,7 @@ As tabelas oficiais `matches` continuam como calendário da liga. A Entrega 06 r
 DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan test
 ```
 
-A suíte completa passou com **162 testes e 334.912 asserções em SQLite**, incluindo replays V1/V2, motor V3, todas as formações e três temporadas consecutivas. As validações anteriores em MySQL também cobrem a ida e volta dos snapshots pelo JSON do banco.
+A suíte completa passou com **174 testes e 336.036 asserções em SQLite**, incluindo replays V1/V2/V3, motor V4 incremental, todas as formações, concorrência/idempotência, encerramento rápido e três temporadas consecutivas. As validações anteriores em MySQL também cobrem a ida e volta dos snapshots pelo JSON do banco.
 
 Os testes do motor incluem 100 seeds com reconciliação detalhada de eventos/estatísticas e **2.000 partidas sintéticas**: 1.000 entre equipes equivalentes, 250 com mandante muito superior, 250 com visitante muito superior, 250 com esforço alto e 250 com mandante exausto. Verificam diversidade de placares, empates, jogos sem gols, jogos com cinco ou mais gols, vantagem técnica, desgaste e limites estatísticos. Também há cenários com atributos extremos, nenhuma reserva, limites de substituição, mando/torcida, entradas inválidas, referência de replay e abandono por expulsões.
 

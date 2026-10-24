@@ -13,6 +13,7 @@ use App\Domain\Career\Models\CareerOperation;
 use App\Domain\Football\Engine\FootballMatchEngine;
 use App\Domain\Football\Engine\MatchInput;
 use App\Domain\Football\Engine\ReplayHash;
+use App\Domain\Football\Models\InteractiveMatchSession;
 use App\Domain\Football\Models\OfficialMatchResult;
 use LogicException;
 
@@ -39,30 +40,44 @@ class PlayOfficialMatch
         $humanId = $career->controlledClub->career_club_id;
         $home = $match->homeClub;
         $away = $match->awayClub;
-        $teams = [];
-        foreach (['home' => [$home, $away], 'away' => [$away, $home]] as $side => [$club, $opponent]) {
-            if ($club->id === $humanId) {
-                if ($operation->kind !== 'PLAY_MATCH' || (int) $operation->input['match_id'] !== $match->id) {
-                    throw new LogicException('A partida do usuário exige confirmação específica.');
-                }
-                $teams[$side] = $operation->input['human_team'];
-            } else {
-                $teams[$side] = $this->snapshots->make($career, $club, false, $opponent, $side === 'home');
+        $interactive = isset($operation->input['interactive_session_id']) && (int) ($operation->input['match_id'] ?? 0) === $match->id
+            ? InteractiveMatchSession::where('career_id', $career->id)->where('match_id', $match->id)
+                ->whereKey($operation->input['interactive_session_id'])->where('status', 'finished')->firstOrFail()
+            : null;
+        if ($interactive) {
+            $input = (new MatchInput($interactive->input))->data;
+            $result = $interactive->result;
+            if (ReplayHash::of($result) !== ReplayHash::of($this->engine->simulate($input))) {
+                throw new LogicException('O resultado interativo não corresponde à reprodução determinística.');
             }
+            $plan = $interactive->meta['attendance_plan'];
+            $realized = $interactive->meta['attendance_realized'];
+        } else {
+            $teams = [];
+            foreach (['home' => [$home, $away], 'away' => [$away, $home]] as $side => [$club, $opponent]) {
+                if ($club->id === $humanId) {
+                    if ($operation->kind !== 'PLAY_MATCH' || (int) $operation->input['match_id'] !== $match->id) {
+                        throw new LogicException('A partida do usuário exige confirmação específica.');
+                    }
+                    $teams[$side] = $operation->input['human_team'];
+                } else {
+                    $teams[$side] = $this->snapshots->make($career, $club, false, $opponent, $side === 'home');
+                }
+            }
+            $plan = $operation->kind === 'PLAY_MATCH' && (int) $operation->input['match_id'] === $match->id
+                ? ($operation->input['human_attendance_plan'] ?? $this->attendance->forecast($career, $home, $away, $match))
+                : $this->attendance->forecast($career, $home, $away, $match);
+            if ($home->id !== $humanId) {
+                $plan = $this->tickets->chooseForAi($plan);
+            }
+            $realized = $this->attendance->realize($plan, $career->creation_key.'|'.$match->id);
+            $input = (new MatchInput([
+                'engine_version' => $operation->input['engine_version'],
+                'seed' => hash('sha256', 'official-v1|'.$career->creation_key.'|'.$match->id),
+                'home' => $teams['home'], 'away' => $teams['away'], 'home_context' => $this->attendance->homeContext($plan, $realized),
+            ]))->data;
+            $result = $this->engine->simulate($input);
         }
-        $plan = $operation->kind === 'PLAY_MATCH' && (int) $operation->input['match_id'] === $match->id
-            ? ($operation->input['human_attendance_plan'] ?? $this->attendance->forecast($career, $home, $away, $match))
-            : $this->attendance->forecast($career, $home, $away, $match);
-        if ($home->id !== $humanId) {
-            $plan = $this->tickets->chooseForAi($plan);
-        }
-        $realized = $this->attendance->realize($plan, $career->creation_key.'|'.$match->id);
-        $input = (new MatchInput([
-            'engine_version' => $operation->input['engine_version'],
-            'seed' => hash('sha256', 'official-v1|'.$career->creation_key.'|'.$match->id),
-            'home' => $teams['home'], 'away' => $teams['away'], 'home_context' => $this->attendance->homeContext($plan, $realized),
-        ]))->data;
-        $result = $this->engine->simulate($input);
         $record = OfficialMatchResult::create([
             'career_id' => $career->id, 'match_id' => $match->id, 'career_operation_id' => $operation->id,
             'played_on' => $career->current_date, 'engine_version' => $input['engine_version'], 'seed' => $input['seed'],
@@ -79,9 +94,13 @@ class PlayOfficialMatch
                 if ($stats['minutes'] === 0 && $stats['red_cards'] === 0) {
                     continue;
                 }
-                $career->players()->where('career_club_id', $side === 'home' ? $home->id : $away->id)->whereKey($stats['player_id'])->update([
+                $effects = [
                     'fitness' => $stats['final_fitness'], 'suspended_matches' => $stats['red_cards'] > 0 ? 1 : 0,
-                ]);
+                ];
+                if (($stats['injured'] ?? false) && ($stats['injury_days'] ?? 0) > 0) {
+                    $effects['injured_until'] = $career->current_date->addDays((int) $stats['injury_days'])->toDateString();
+                }
+                $career->players()->where('career_club_id', $side === 'home' ? $home->id : $away->id)->whereKey($stats['player_id'])->update($effects);
             }
         }
         $match->update(['status' => 'played']);

@@ -6,7 +6,7 @@ Execute `php artisan migrate --seed` na conexão de desenvolvimento. Na nuvem, a
 
 O dashboard mostra data interna, próxima partida, dias restantes, classificação, artilharia e calendário com links para os resultados oficiais. **Próxima partida** é a ação principal: processa os dias intermediários e para no pré-jogo. **Avançar 1 dia** e **Próximo acontecimento** são alternativas. Nenhuma delas inicia a partida do usuário.
 
-No dia do jogo, escolha **Jogar partida**, revise a escalação e as táticas e pressione **Confirmar e jogar partida**. É necessário ter uma escalação salva e válida, substituindo atletas suspensos ou indisponíveis. O resultado mostra eventos, estatísticas e condição física aplicada. Os demais confrontos da mesma data também são concluídos nessa confirmação. A data permanece no dia da partida até uma nova progressão.
+No dia do jogo, escolha **Jogar partida**, revise a escalação e as táticas e pressione **Confirmar e jogar partida**. É necessário ter uma escalação salva e válida, substituindo atletas suspensos ou indisponíveis. A central interativa acompanha os 90 minutos, aceita intervenções enquanto pausada e conserva o último minuto confirmado para retomada. Ao registrar o resultado final, a operação oficial aplica os efeitos e conclui os demais confrontos da mesma data. A data permanece no dia da partida até uma nova progressão.
 
 Após as 18 rodadas, **Próximo acontecimento** encerra esportivamente a temporada, no dia seguinte à última data do calendário. O dashboard conserva campeão, classificação e artilharia finais. A criação da temporada seguinte pertence à Entrega 10.
 
@@ -57,7 +57,7 @@ stateDiagram-v2
 
 ## Resultados, classificação e artilharia
 
-`PlayOfficialMatch` é uma etapa interna de uma operação autorizada e bloqueada. Usa os snapshots humanos confirmados, a IA da Entrega 05 e a versão do motor registrada na autorização. A seed deriva da chave persistida da carreira e do identificador do confronto, sem relógio real ou sorteio global.
+`PlayOfficialMatch` é uma etapa interna de uma operação autorizada e bloqueada. Quando há uma sessão interativa concluída, usa sua entrada e resultado congelados e exige uma reprodução determinística idêntica antes de consolidar. Nas demais partidas usa os snapshots confirmados, a IA da Entrega 05 e a versão do motor registrada na autorização. A seed deriva da chave persistida da carreira e do identificador do confronto, sem relógio real ou sorteio global.
 
 `official_match_results` possui um resultado único por confronto, com data, placar, versão, seed, entrada completa, resultado e checksums. Os modelos bloqueiam atualização e exclusão. Chaves estrangeiras compostas impedem associar resultado, operação e partida de carreiras diferentes. Resultados oficiais ficam separados de `match_simulations`: amistosos continuam sem efeitos na competição ou nos jogadores.
 
@@ -79,6 +79,8 @@ Solicitações iguais retornam a mesma operação. Reutilizar um UUID com outro 
 Se a requisição for interrompida depois da autorização, o dashboard mostra **Retomar operação autorizada**. O POST `/careers/{career}/operations/{operation}/resume` exige o proprietário e a operação da mesma carreira. Retoma o destino original, sem criar outra progressão. Operações concluídas podem ser repetidas sem reaplicar efeitos. Em falhas persistentes de dados ou infraestrutura, corrigir sua causa e usar a mesma retomada; não iniciar outra operação para contornar a reserva.
 
 Não existem cron jobs, workers ou efeitos de login/GET que iniciem ou retomem progressões. O relógio real aparece apenas nos timestamps de auditoria. Fechar o navegador pode deixar a execução já autorizada concluir no servidor; ao voltar, a carreira terá o estado confirmado ou a autorização pendente, sem avanços adicionais.
+
+A simulação interativa segue a mesma regra: fechar a aba não avança minutos. `interactive_match_sessions` conserva todo o estado do motor e `interactive_match_requests` impede repetir controles, decisões ou avanços. Cada chamada valida proprietário, carreira, partida, revisão e UUID sob transação e bloqueio. A escalação fica bloqueada após o início; uma aba antiga recebe erro de revisão em vez de reaplicar minutos. A consolidação altera a sessão de `finished` para `finalized` na mesma transação dos resultados oficiais.
 
 ## Migração e validação
 

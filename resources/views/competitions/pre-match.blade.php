@@ -10,6 +10,6 @@
 @if($decision)
 <div class="notice notice-warning" role="alert"><span>!</span><p>Confirme primeiro o acontecimento pendente no dashboard.</p></div>
 @else
-<section class="panel"><div class="panel-header"><div><h2>Confirmação</h2><p>Esta ação inicia a simulação oficial e não deve ser enviada mais de uma vez.</p></div></div><form data-progression method="post" action="{{ route('careers.progression.store',$career) }}">@csrf<input type="hidden" name="request_id" value="{{ $requestId }}"><input type="hidden" name="revision" value="{{ $career->progression_revision }}"><input type="hidden" name="match_id" value="{{ $match->id }}"><button class="primary" name="action" value="PLAY_MATCH" type="submit" data-loading-label="Simulando partida…">Confirmar e jogar partida</button></form></section>
+<section class="panel"><div class="panel-header"><div><h2>{{ $interactive ? 'Partida em andamento' : 'Confirmação' }}</h2><p>{{ $interactive ? 'A simulação permanece salva no último minuto confirmado.' : 'A partida será acompanhada minuto a minuto e poderá ser retomada após uma interrupção.' }}</p></div></div>@if($interactive)<a class="btn primary" href="{{ route('careers.matches.live.show', [$career, $match]) }}">Retomar partida aos {{ $interactive->minute }}'</a>@else<form data-loading-form method="post" action="{{ route('careers.matches.live.start',[$career,$match]) }}" data-loading-label="Preparando partida…">@csrf<button class="primary" type="submit">Confirmar e jogar partida</button></form>@endif</section>
 @endif
 @endsection

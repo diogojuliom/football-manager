@@ -14,6 +14,7 @@ use App\Domain\Career\Models\CareerOperation;
 use App\Domain\Career\Models\CompetitionEdition;
 use App\Domain\Career\Models\StadiumProject;
 use App\Domain\Football\Engine\ReplayHash;
+use App\Domain\Football\Models\InteractiveMatchSession;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -109,9 +110,18 @@ class CareerProgressionService
                         }
                         $human = $career->controlledClub->club;
                         $opponent = $match->home_club_id === $human->id ? $match->awayClub : $match->homeClub;
-                        // Validate and freeze the user's final decisions before reserving the operation.
-                        $stored['human_team'] = $this->snapshots->make($career, $human, true, $opponent, $match->home_club_id === $human->id);
-                        $stored['human_attendance_plan'] = $this->attendance->forecast($career, $match->homeClub, $match->awayClub, $match);
+                        $interactive = InteractiveMatchSession::where('career_id', $career->id)->where('match_id', $match->id)
+                            ->where('status', 'finished')->first();
+                        if ($interactive) {
+                            $side = $interactive->meta['human_side'];
+                            $stored['interactive_session_id'] = $interactive->id;
+                            $stored['human_team'] = $interactive->input[$side];
+                            $stored['human_attendance_plan'] = $interactive->meta['attendance_plan'];
+                        } else {
+                            // Validate and freeze the user's final decisions before reserving the operation.
+                            $stored['human_team'] = $this->snapshots->make($career, $human, true, $opponent, $match->home_club_id === $human->id);
+                            $stored['human_attendance_plan'] = $this->attendance->forecast($career, $match->homeClub, $match->awayClub, $match);
+                        }
                     } else {
                         if ($match && $match->scheduled_on->lte($career->current_date)) {
                             $this->invalid('progression', 'Jogue a partida pendente antes de avançar o calendário.');
@@ -191,6 +201,10 @@ class CareerProgressionService
                 'current_date' => $career->current_date->toDateString(), 'state' => $nextState->value,
                 'revision' => $career->progression_revision, 'played_match_ids' => $played,
             ]]);
+            if (isset($operation->input['interactive_session_id'])) {
+                InteractiveMatchSession::where('career_id', $career->id)->whereKey($operation->input['interactive_session_id'])
+                    ->where('status', 'finished')->update(['status' => 'finalized']);
+            }
 
             return $operation;
         }, 5);

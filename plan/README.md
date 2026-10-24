@@ -12,15 +12,21 @@ A pasta [entregas](entregas/) contém um arquivo Markdown para cada uma das 13 e
 | 01 | [Dados-base e clubes](entregas/entrega-01-dados-base-e-clubes.md) | Implementada |
 | 02 | [Carreiras](entregas/entrega-02-carreiras.md) | Implementada |
 | 03 | [Elenco e táticas](entregas/entrega-03-elenco-e-taticas.md) | Implementada |
-| 04 | [Motor de partidas](entregas/entrega-04-motor-de-partidas.md) | Implementada |
-| 05 | [IA dos clubes](entregas/entrega-05-ia-dos-clubes.md) | Implementada |
-| 06 | [Competições, calendário e progressão temporal](entregas/entrega-06-competicoes-calendario-e-progressao-temporal.md) | Implementada |
+| 04 | [Motor de partidas](entregas/entrega-04-motor-de-partidas.md) | Implementada e validada (V4 incremental) |
+| 05 | [IA dos clubes](entregas/entrega-05-ia-dos-clubes.md) | Implementada e validada (decisões ao vivo) |
+| 06 | [Competições, calendário e progressão temporal](entregas/entrega-06-competicoes-calendario-e-progressao-temporal.md) | Implementada e validada (partida interativa integrada) |
 | 07 | [Estádios e torcida](entregas/entrega-07-estadios-e-torcida.md) | Implementada |
 | 08 | [Ingressos e finanças](entregas/entrega-08-ingressos-e-financas.md) | Implementada |
 | 09 | [Obras e infraestrutura](entregas/entrega-09-obras-e-infraestrutura.md) | Implementada |
 | 10 | [Temporadas consecutivas](entregas/entrega-10-temporadas-consecutivas.md) | Implementada e validada |
 | 11 | [Interface e experiência](entregas/entrega-11-interface-e-experiencia.md) | Implementada e validada |
 | 12 | [Balanceamento e estabilização](entregas/entrega-12-balanceamento-e-estabilizacao.md) | Planejada |
+
+## Evoluções do núcleo esportivo
+
+- **Simulação interativa de partidas:** implementada com o motor `4.0.0`, processamento incremental no backend, cronômetro acelerado, sete velocidades, pausa e intervalo, substituições, 21 formações, instruções táticas, decisões contextuais da IA, retomada persistente, RNG serializado, revisão concorrente e idempotência por requisição.
+- **Compatibilidade:** os motores V1, V2 e V3 e seus resultados publicados foram preservados. Partidas rápidas entre clubes da IA continuam usando o fluxo consolidado, enquanto a partida do usuário no pré-jogo utiliza a central interativa e só produz efeitos oficiais ao ser finalizada.
+- **Validação visual:** o campo, banco, placar, estatísticas e linha do tempo foram verificados em desktop (1440 px) e mobile (390 px), incluindo todas as 21 formações e ausência de rolagem horizontal.
 
 ## Orientações para implementação futura
 

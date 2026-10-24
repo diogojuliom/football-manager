@@ -101,6 +101,14 @@ class Tactics
         'build_up' => ['short' => 'Passes curtos', 'balanced' => 'Equilibrada', 'direct' => 'Jogo direto'],
     ];
 
+    public const LIVE_OPTIONS = [
+        'style' => ['balanced' => 'Equilibrado', 'total_attack' => 'Ataque total', 'counter' => 'Contra-ataque / retranca'],
+        'attack_direction' => ['balanced' => 'Equilibrada', 'center' => 'Pelo meio', 'wings' => 'Pelas laterais'],
+        'marking' => ['light' => 'Leve', 'heavy' => 'Pesada', 'very_heavy' => 'Muito pesada'],
+    ];
+
+    public const LIVE_LABELS = ['style' => 'Estilo de jogo', 'attack_direction' => 'Direção dos ataques', 'marking' => 'Marcação'];
+
     public const LABELS = ['mentality' => 'Mentalidade', 'pressure' => 'Pressão', 'tempo' => 'Ritmo', 'build_up' => 'Construção de jogadas'];
 
     public const ATTRIBUTES = [

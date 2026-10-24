@@ -12,6 +12,8 @@ class CompetitionRuleset extends Template
     {
         return [
             'max_substitutes' => ['sometimes', 'integer', 'between:0,12'],
+            'max_substitutions' => ['sometimes', 'integer', 'between:0,5'],
+            'max_substitution_windows' => ['sometimes', 'integer', 'between:0,5'],
             'code' => ['required', 'string', 'max:64'],
             'format' => ['required', 'in:double_round_robin'],
             'club_count' => ['required', 'integer', 'min:2', 'multiple_of:2'],

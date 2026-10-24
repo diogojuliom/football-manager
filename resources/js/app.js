@@ -1,5 +1,6 @@
 import './bootstrap';
 import { initializeTacticalBoards } from './tactical-board';
+import { initializeLiveMatches } from './live-match';
 
 const shell = document.querySelector('[data-game-shell]');
 const toggle = document.querySelector('[data-menu-toggle]');
@@ -41,6 +42,7 @@ window.addEventListener('pageshow', () => {
 document.querySelectorAll('[data-dismiss]').forEach((button) => button.addEventListener('click', () => button.closest('[data-dismissible]')?.remove()));
 
 initializeTacticalBoards();
+initializeLiveMatches();
 
 document.querySelectorAll('[data-ticket-preview]').forEach((form) => {
     const input = form.querySelector('[name="price"]');

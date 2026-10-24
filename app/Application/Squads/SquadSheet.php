@@ -6,6 +6,7 @@ use App\Domain\Career\CareerState;
 use App\Domain\Career\Models\Career;
 use App\Domain\Career\Models\CareerClub;
 use App\Domain\Career\Models\CompetitionEdition;
+use App\Domain\Football\Models\InteractiveMatchSession;
 use App\Domain\Tactics\Tactics;
 
 class SquadSheet
@@ -20,7 +21,8 @@ class SquadSheet
 
     public function editable(Career $career): bool
     {
-        return in_array($career->state, [CareerState::AwaitingDecision, CareerState::PreMatch, CareerState::AwaitingSeason], true);
+        return in_array($career->state, [CareerState::AwaitingDecision, CareerState::PreMatch, CareerState::AwaitingSeason], true)
+            && ! InteractiveMatchSession::where('career_id', $career->id)->whereIn('status', ['running', 'finished'])->exists();
     }
 
     public function forCareer(Career $career, ?string $formation = null): array

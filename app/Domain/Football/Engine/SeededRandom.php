@@ -4,9 +4,12 @@ namespace App\Domain\Football\Engine;
 
 final class SeededRandom
 {
-    private int $counter = 0;
+    public function __construct(private string $seed, private int $counter = 0) {}
 
-    public function __construct(private string $seed) {}
+    public function counter(): int
+    {
+        return $this->counter;
+    }
 
     public function integer(int $min, int $max): int
     {

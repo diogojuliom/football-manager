@@ -10,6 +10,7 @@ use App\Domain\Career\Models\Career;
 use App\Domain\Career\Models\CareerMatch;
 use App\Domain\Career\Models\CareerOperation;
 use App\Domain\Finance\Models\CareerFinancialTransaction;
+use App\Domain\Football\Models\InteractiveMatchSession;
 use App\Domain\Football\Models\OfficialMatchResult;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -41,7 +42,8 @@ class ProgressionController extends Controller
 
         return view('competitions.pre-match', ['career' => $career, 'match' => $match,
             'forecast' => $attendance->forecast($career, $match->homeClub, $match->awayClub, $match),
-            'requestId' => (string) Str::uuid(), 'decision' => $calendar->decision($career)]);
+            'requestId' => (string) Str::uuid(), 'decision' => $calendar->decision($career),
+            'interactive' => InteractiveMatchSession::where('career_id', $career->id)->where('match_id', $match->id)->first()]);
     }
 
     public function result(Career $career, OfficialMatchResult $result)
