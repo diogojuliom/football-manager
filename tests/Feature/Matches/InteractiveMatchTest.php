@@ -38,7 +38,7 @@ class InteractiveMatchTest extends TestCase
         $this->owner = User::factory()->create();
         $this->career = app(CreateCareer::class)->execute($this->owner, [
             'name' => 'Ao vivo', 'coach_name' => 'Ana', 'club_template_id' => ClubTemplate::firstOrFail()->id,
-            'request_id' => (string) Str::uuid(),
+            'request_id' => '00000000-0000-4000-8000-000000000001',
         ]);
         app(SaveSquad::class)->execute($this->owner, $this->career, app(SquadSheet::class)->forCareer($this->career)['settings']);
         app(CareerProgressionService::class)->execute($this->owner, $this->career, [
@@ -57,6 +57,145 @@ class InteractiveMatchTest extends TestCase
     private function request(int $revision, array $extra = []): array
     {
         return $extra + ['request_id' => (string) Str::uuid(), 'revision' => $revision];
+    }
+
+    public function test_basic_match_flow_advances_each_minute_freezes_on_pauses_and_consolidates_once(): void
+    {
+        $service = app(InteractiveMatchService::class);
+        $match = $this->match();
+        $session = $service->start($this->owner, $this->career, $match);
+        $sameSession = $service->start($this->owner, $this->career, $match);
+
+        $this->assertSame($session->id, $sameSession->id);
+        $this->assertDatabaseCount('interactive_match_sessions', 1);
+        $this->assertSame(0, $session->minute);
+        $this->assertTrue($session->paused);
+        $this->assertSame(['kickoff'], array_column($session->state['events'], 'type'));
+
+        $initial = $service->response($session);
+        try {
+            $service->advance($this->owner, $this->career, $session, $this->request(0, ['minutes' => 1]));
+            $this->fail('Uma partida pausada avançou.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('match', $exception->errors());
+        }
+        $this->assertSame($initial, $service->response($session->fresh()));
+
+        $current = $service->control($this->owner, $this->career, $session, $this->request(0, ['action' => 'resume']));
+        $this->assertFalse($current['paused']);
+        for ($expectedMinute = 1; $expectedMinute <= 10; $expectedMinute++) {
+            $current = $this->advanceOneMinute($service, $session, $current, $expectedMinute);
+        }
+
+        $current = $service->control($this->owner, $this->career, $session,
+            $this->request($current['revision'], ['action' => 'pause']));
+        $paused = $current;
+        $requestCount = InteractiveMatchSession::findOrFail($session->id)->requests()->count();
+        try {
+            $service->advance($this->owner, $this->career, $session, $this->request($current['revision'], ['minutes' => 1]));
+            $this->fail('A pausa manual não congelou a partida.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('match', $exception->errors());
+        }
+        $this->assertSame($paused, $service->response($session->fresh()));
+        $this->assertSame($requestCount, $session->fresh()->requests()->count());
+
+        $current = $service->control($this->owner, $this->career, $session,
+            $this->request($current['revision'], ['action' => 'resume']));
+        for ($expectedMinute = 11; $expectedMinute <= 45; $expectedMinute++) {
+            $current = $this->advanceOneMinute($service, $session, $current, $expectedMinute);
+        }
+        $this->assertTrue($current['paused']);
+        $this->assertSame('half_time', $current['state']['status']);
+        $this->assertCount(1, array_filter($current['state']['events'], fn (array $event): bool => $event['type'] === 'half_time'));
+
+        $halfTime = $current;
+        try {
+            $service->advance($this->owner, $this->career, $session, $this->request($current['revision'], ['minutes' => 1]));
+            $this->fail('O intervalo não bloqueou o avanço.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('match', $exception->errors());
+        }
+        $this->assertSame($halfTime, $service->response($session->fresh()));
+
+        $current = $service->control($this->owner, $this->career, $session,
+            $this->request($current['revision'], ['action' => 'resume']));
+        $this->assertSame('playing', $current['state']['status']);
+        $lastAdvance = null;
+        while ($current['status'] === 'running') {
+            $lastAdvance = $this->request($current['revision'], ['minutes' => 1]);
+            $current = $this->advanceOneMinute($service, $session, $current, $current['minute'] + 1, $lastAdvance);
+        }
+
+        $this->assertSame('finished', $current['status']);
+        $this->assertTrue($current['paused']);
+        $this->assertSame(90 + $current['state']['added_time'], $current['minute']);
+        $this->assertSame($current['minute'], $current['result']['minutes']);
+        $this->assertBasicEventConsistency($current['result']);
+
+        $requestCount = $session->fresh()->requests()->count();
+        $this->assertSame($current, $service->advance($this->owner, $this->career, $session, $lastAdvance));
+        $this->assertSame($requestCount, $session->fresh()->requests()->count());
+        $this->assertSame($current['state'], $session->fresh()->state);
+
+        $progression = [
+            'action' => CareerProgressionService::PLAY_MATCH,
+            'request_id' => (string) Str::uuid(),
+            'revision' => $this->career->fresh()->progression_revision,
+            'match_id' => $match->id,
+        ];
+        $operation = app(CareerProgressionService::class)->execute($this->owner, $this->career, $progression);
+        $official = OfficialMatchResult::where('career_id', $this->career->id)->where('match_id', $match->id)->sole();
+        $this->assertSame(ReplayHash::of($current['result']), ReplayHash::of($official->result));
+        $this->assertSame($current['result']['home']['stats']['goals'], $official->home_goals);
+        $this->assertSame($current['result']['away']['stats']['goals'], $official->away_goals);
+        $resultCount = OfficialMatchResult::where('career_id', $this->career->id)->count();
+        $retry = app(CareerProgressionService::class)->execute($this->owner, $this->career, $progression);
+
+        $this->assertSame($operation->id, $retry->id);
+        $this->assertSame($resultCount, OfficialMatchResult::where('career_id', $this->career->id)->count());
+        $this->assertSame(1, OfficialMatchResult::where('career_id', $this->career->id)->where('match_id', $match->id)->count());
+        $this->assertSame('finalized', $session->fresh()->status);
+    }
+
+    private function advanceOneMinute(InteractiveMatchService $service, InteractiveMatchSession $session, array $before,
+        int $expectedMinute, ?array $request = null): array
+    {
+        $eventCount = count($before['state']['events']);
+        $request ??= $this->request($before['revision'], ['minutes' => 1]);
+        $after = $service->advance($this->owner, $this->career, $session, $request);
+
+        $this->assertSame($expectedMinute, $after['minute']);
+        $this->assertSame($before['minute'] + 1, $after['minute']);
+        foreach (array_slice($after['state']['events'], $eventCount) as $event) {
+            $this->assertSame($expectedMinute, $event['minute'], 'Um evento foi antecipado ou atrasado.');
+        }
+
+        return $after;
+    }
+
+    private function assertBasicEventConsistency(array $result): void
+    {
+        $events = $result['events'];
+        $this->assertSame(range(1, count($events)), array_column($events, 'sequence'));
+        $minutes = array_column($events, 'minute');
+        $ordered = $minutes;
+        sort($ordered);
+        $this->assertSame($ordered, $minutes);
+        $this->assertSame($result['minutes'], max($minutes));
+        $this->assertCount(1, array_filter($events, fn (array $event): bool => $event['type'] === 'kickoff' && $event['minute'] === 0));
+        $this->assertCount(1, array_filter($events, fn (array $event): bool => $event['type'] === 'half_time' && $event['minute'] === 45));
+        $this->assertCount(1, array_filter($events, fn (array $event): bool => $event['type'] === 'full_time' && $event['minute'] === $result['minutes']));
+        $this->assertCount($result['minutes'], array_filter($events, fn (array $event): bool => $event['type'] === 'possession'));
+
+        foreach (['home', 'away'] as $side) {
+            foreach (['goal' => 'goals', 'opportunity' => 'opportunities', 'shot' => 'shots', 'foul' => 'fouls',
+                'yellow_card' => 'yellow_cards', 'red_card' => 'red_cards', 'save' => 'saves', 'substitution' => 'substitutions'] as $eventType => $stat) {
+                $count = count(array_filter($events, fn (array $event): bool => $event['type'] === $eventType && $event['side'] === $side));
+                $this->assertSame($result[$side]['stats'][$stat], $count, "A estatística {$stat} divergiu dos eventos.");
+            }
+            $this->assertSame($result[$side]['stats']['goals'], array_sum(array_column($result[$side]['players'], 'goals')));
+        }
     }
 
     public function test_match_pauses_at_half_time_restores_rng_and_finalizes_the_official_round_once(): void
