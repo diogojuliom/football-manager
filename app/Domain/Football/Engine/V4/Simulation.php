@@ -271,14 +271,16 @@ final class Simulation
         if (! is_string($formation) || ! isset(Tactics::FORMATIONS[$formation])) {
             throw new InvalidArgumentException('Formação inválida.');
         }
+        $tactics = $this->state['teams'][$side]['tactics'];
         foreach (Tactics::LIVE_OPTIONS as $field => $options) {
-            $value = $payload[$field] ?? $this->state['teams'][$side]['tactics'][$field];
+            $value = $payload[$field] ?? $tactics[$field];
             if (! is_string($value) || ! isset($options[$value])) {
                 throw new InvalidArgumentException('Instrução tática inválida.');
             }
-            $this->state['teams'][$side]['tactics'][$field] = $value;
+            $tactics[$field] = $value;
         }
-        $this->state['teams'][$side]['tactics']['formation'] = $formation;
+        $tactics['formation'] = $formation;
+        $this->state['teams'][$side]['tactics'] = $tactics;
         $this->event('tactical_change', $side, null, ['tactics' => $this->state['teams'][$side]['tactics'], 'reason' => 'coach']);
     }
 
