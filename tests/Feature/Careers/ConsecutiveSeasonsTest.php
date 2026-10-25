@@ -5,6 +5,8 @@ namespace Tests\Feature\Careers;
 use App\Application\Careers\CareerProgressionService;
 use App\Application\Careers\CreateCareer;
 use App\Application\Careers\SeasonTransitionService;
+use App\Application\Competitions\StandingsService;
+use App\Application\Matches\InteractiveMatchService;
 use App\Application\Squads\SaveSquad;
 use App\Application\Squads\SquadSheet;
 use App\Domain\Career\CareerState;
@@ -13,6 +15,10 @@ use App\Domain\Career\Models\CareerOperation;
 use App\Domain\Career\Models\CompetitionEdition;
 use App\Domain\Career\Models\StadiumProject;
 use App\Domain\Finance\Models\CareerFinancialTransaction;
+use App\Domain\Football\Engine\FootballMatchEngine;
+use App\Domain\Football\Engine\ReplayHash;
+use App\Domain\Football\Engine\V4\Simulation;
+use App\Domain\Football\Models\InteractiveMatchSession;
 use App\Domain\Football\Models\OfficialMatchResult;
 use App\Domain\GameDatabase\Models\ClubTemplate;
 use App\Models\User;
@@ -69,7 +75,16 @@ class ConsecutiveSeasonsTest extends TestCase
             $this->saveAvailableLineup();
             $match = app(\App\Application\Careers\CareerCalendar::class)->nextMatch($this->career->fresh());
             $this->assertSame($round, $match->round);
+            $date = $this->career->fresh()->current_date->toDateString();
+            $session = app(InteractiveMatchService::class)->start($this->owner, $this->career, $match);
+            $finished = app(InteractiveMatchService::class)->finish($this->owner, $this->career, $session, [
+                'request_id' => (string) Str::uuid(), 'revision' => 0,
+            ]);
+            $this->assertSame('finished', $finished['status']);
+            $this->assertSame(Simulation::VERSION, $finished['result']['engine_version']);
+            $this->assertSame($date, $this->career->fresh()->current_date->toDateString());
             $this->progress('PLAY_MATCH', ['match_id' => $match->id]);
+            $this->assertSame('finalized', $session->fresh()->status);
         }
         $this->progress('ADVANCE_TO_NEXT_EVENT');
         $this->assertSame(CareerState::AwaitingSeason, $this->career->fresh()->state);
@@ -84,6 +99,7 @@ class ConsecutiveSeasonsTest extends TestCase
         $supportId = $club->support->id;
         $initialPlayerIds = $club->players()->orderBy('id')->pluck('id')->all();
         $initialAges = $club->players()->orderBy('id')->pluck('age', 'id')->all();
+        $initialBalances = $this->career->clubs()->pluck('balance_cents', 'id');
         $summaries = [];
 
         for ($number = 1; $number <= 3; $number++) {
@@ -128,8 +144,26 @@ class ConsecutiveSeasonsTest extends TestCase
         $this->assertSame(270, $this->career->matches()->count());
         $this->assertSame(270, OfficialMatchResult::where('career_id', $this->career->id)->count());
         $this->assertSame(540, CareerFinancialTransaction::where('career_id', $this->career->id)->whereNotNull('match_id')->count());
+        $this->assertSame(270, OfficialMatchResult::where('career_id', $this->career->id)->distinct()->count('match_id'));
+        $this->assertSame(540, CareerFinancialTransaction::where('career_id', $this->career->id)->whereNotNull('match_id')->distinct()->count('source_key'));
+        $this->assertSame(54, OfficialMatchResult::where('career_id', $this->career->id)->where('engine_version', Simulation::VERSION)->count());
+        $this->assertSame(216, OfficialMatchResult::where('career_id', $this->career->id)->where('engine_version', FootballMatchEngine::VERSION)->count());
+        $this->assertSame(54, InteractiveMatchSession::where('career_id', $this->career->id)->where('status', 'finalized')->count());
         foreach ($summaries as $number => $summary) {
-            $this->assertSame($summary, $this->career->seasons()->where('number', $number)->sole()->summary);
+            $season = $this->career->seasons()->where('number', $number)->sole();
+            $this->assertSame($summary, $season->summary);
+            $edition = CompetitionEdition::where('career_id', $this->career->id)->where('career_season_id', $season->id)->sole();
+            $standings = app(StandingsService::class)->standings($edition);
+            $scorers = app(StandingsService::class)->scorers($edition);
+            $this->assertSame(ReplayHash::of($standings), ReplayHash::of($summary[0]['standings']));
+            $this->assertSame(ReplayHash::of($scorers), ReplayHash::of($summary[0]['scorers']));
+            $this->assertSame(180, array_sum(array_column($standings, 'played')));
+            $this->assertSame(array_sum(array_column($standings, 'goals_for')), array_sum(array_column($scorers, 'goals')));
+        }
+        foreach ($this->career->clubs as $participant) {
+            $movement = CareerFinancialTransaction::where('career_id', $this->career->id)
+                ->where('career_club_id', $participant->id)->sum('amount_cents');
+            $this->assertSame($initialBalances[$participant->id] + $movement, $participant->fresh()->balance_cents);
         }
         foreach ($initialAges as $id => $age) {
             $this->assertSame($age + 2, $this->career->players()->findOrFail($id)->age);
@@ -139,6 +173,11 @@ class ConsecutiveSeasonsTest extends TestCase
         $this->get(route('careers.show', ['career' => $this->career, 'season' => 1]))->assertOk()
             ->assertSee('Classificação')->assertSee('Temporada 1')->assertSee($summaries[1][0]['standings'][0]['name']);
         $this->get(route('careers.show', ['career' => $this->career, 'season' => 99]))->assertNotFound();
+        foreach ([Simulation::VERSION, FootballMatchEngine::VERSION] as $version) {
+            $historical = OfficialMatchResult::where('career_id', $this->career->id)->where('engine_version', $version)->firstOrFail();
+            $this->assertSame($historical->result_checksum, ReplayHash::of((new FootballMatchEngine)->simulate($historical->input)));
+            $this->get(route('careers.results.show', [$this->career, $historical]))->assertOk()->assertSee('Motor '.$version);
+        }
     }
 
     public function test_interrupted_transition_rolls_back_and_resume_is_idempotent_and_isolated(): void
