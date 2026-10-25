@@ -3,7 +3,8 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "vite build"
+        "build": "vite build",
+        "test:frontend": "node --test tests/Frontend/*.test.js"
     },
     "devDependencies": {
         "axios": "^1.6.4",

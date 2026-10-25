@@ -26,7 +26,8 @@ A pasta [entregas](entregas/) contém um arquivo Markdown para cada uma das 13 e
 
 - **Simulação interativa de partidas:** implementada com o motor `4.0.0`, processamento incremental no backend, cronômetro acelerado, sete velocidades, pausa e intervalo, substituições, 21 formações, instruções táticas, decisões contextuais da IA, retomada persistente, RNG serializado, revisão concorrente e idempotência por requisição.
 - **Compatibilidade:** os motores V1, V2 e V3 e seus resultados publicados foram preservados. Partidas rápidas entre clubes da IA continuam usando o fluxo consolidado, enquanto a partida do usuário no pré-jogo utiliza a central interativa e só produz efeitos oficiais ao ser finalizada.
-- **Validação visual:** o campo, banco, placar, estatísticas e linha do tempo foram verificados em desktop (1440 px) e mobile (390 px), incluindo todas as 21 formações e ausência de rolagem horizontal.
+- **Validação visual:** o fluxo carreira → pré-jogo → partida → resultado foi validado em navegador Chromium real com banco SQLite descartável, em desktop (1440 px) e mobile (390 px), sem rolagem horizontal ou falhas de renderização. Campo, banco, placar, estatísticas, linha do tempo, substituição, alteração tática, intervalo automático, recarga e encerramento refletiram o estado oficial do backend.
+- **Ritmo da partida:** as sete velocidades (`0,5×`, `0,75×`, `1×`, `1,25×`, `1,5×`, `1,75×` e `2×`) foram verificadas com temporizadores controlados. Em `1×`, os 90 minutos têm duração nominal de 300 segundos; o agendador usa tempo monotônico e compensa a latência das requisições sem enviar a velocidade ao motor esportivo.
 
 ## Orientações para implementação futura
 

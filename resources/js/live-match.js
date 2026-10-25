@@ -1,3 +1,5 @@
+import { LiveMatchClock, LIVE_MATCH_SPEEDS } from './live-match-clock';
+
 const readJson = (root, selector) => JSON.parse(root.querySelector(selector).textContent);
 const activePlayers = (team) => Object.values(team.active);
 const uuid = () => crypto.randomUUID();
@@ -9,7 +11,7 @@ class LiveMatch {
         this.tacticalModel = readJson(root, '[data-live-tactics]');
         this.side = root.dataset.humanSide;
         this.speed = 1;
-        this.timer = null;
+        this.clock = new LiveMatchClock(() => this.advance());
         this.busy = false;
         this.selected = null;
         this.csrf = document.querySelector('meta[name="csrf-token"]').content;
@@ -18,8 +20,11 @@ class LiveMatch {
     initialize() {
         this.root.querySelector('[data-live-toggle]').addEventListener('click', () => this.toggle());
         this.root.querySelector('[data-live-speed]').addEventListener('change', (event) => {
-            this.speed = Number(event.target.value);
-            if (!this.payload.paused) this.schedule();
+            const speed = Number(event.target.value);
+            if (!LIVE_MATCH_SPEEDS.includes(speed)) return;
+            this.speed = speed;
+            this.clock.changeSpeed(speed);
+            this.renderStatus();
         });
         this.root.querySelector('[data-live-finish]').addEventListener('click', () => this.finish());
         this.root.querySelector('[data-live-tactics-form]').addEventListener('submit', (event) => this.applyTactics(event));
@@ -31,31 +36,26 @@ class LiveMatch {
             if (event.key === 'Escape') this.clearSelection();
         });
         this.render();
-        if (!this.payload.paused && this.payload.status === 'running') this.schedule();
+        if (!this.payload.paused && this.payload.status === 'running') this.clock.start(this.speed);
     }
 
     async toggle() {
         if (this.payload.status !== 'running' || this.busy) return;
         const action = this.payload.paused ? 'resume' : 'pause';
         await this.request(this.root.dataset.controlUrl, { action });
-        if (!this.payload.paused) this.schedule();
-    }
-
-    schedule() {
-        clearTimeout(this.timer);
-        if (this.payload.paused || this.payload.status !== 'running') return;
-        this.timer = setTimeout(() => this.advance(), 300000 / 90 / this.speed);
+        if (this.payload.paused) this.clock.stop();
+        else this.clock.start(this.speed);
     }
 
     async advance() {
-        if (this.busy || this.payload.paused || this.payload.status !== 'running') return;
+        if (this.busy || this.payload.paused || this.payload.status !== 'running') return false;
         await this.request(this.root.dataset.advanceUrl, { minutes: 1 });
-        this.schedule();
+        return !this.payload.paused && this.payload.status === 'running';
     }
 
     async finish() {
         if (this.payload.status !== 'running' || this.busy || !window.confirm('Simular todos os minutos restantes sem novas intervenções?')) return;
-        clearTimeout(this.timer);
+        this.clock.stop();
         await this.request(this.root.dataset.finishUrl, {});
     }
 
@@ -154,7 +154,7 @@ class LiveMatch {
         this.renderStats();
         this.renderEvents();
         this.syncTacticsForm();
-        this.status(state.status === 'half_time' ? 'Intervalo: faça seus ajustes e clique em continuar.' : (this.payload.status === 'finished' ? 'Fim de jogo. Registre o resultado para atualizar a carreira.' : (this.payload.paused ? 'Partida pausada. Faça ajustes ou continue.' : `Simulação em ${String(this.speed).replace('.', ',')}×.`)));
+        this.renderStatus();
     }
 
     renderPitch() {
@@ -244,6 +244,11 @@ class LiveMatch {
         const form = this.root.querySelector('[data-live-tactics-form]');
         Object.entries(this.team().tactics).forEach(([field, value]) => { if (form.elements[field]) form.elements[field].value = value; });
         [...form.elements].forEach((field) => { field.disabled = !this.payload.paused || this.payload.status !== 'running'; });
+    }
+
+    renderStatus() {
+        const state = this.payload.state;
+        this.status(state.status === 'half_time' ? 'Intervalo: faça seus ajustes e clique em continuar.' : (this.payload.status === 'finished' ? 'Fim de jogo. Registre o resultado para atualizar a carreira.' : (this.payload.paused ? 'Partida pausada. Faça ajustes ou continue.' : `Simulação em ${String(this.speed).replace('.', ',')}×.`)));
     }
 
     status(message) { this.root.querySelector('[data-live-status]').textContent = message; }
