@@ -5,6 +5,7 @@ namespace App\Application\Matches;
 use App\Application\Attendance\MatchAttendanceService;
 use App\Application\Squads\SquadSheet;
 use App\Domain\Career\Models\Career;
+use App\Domain\Career\Models\CompetitionEdition;
 use App\Domain\Football\Engine\FootballMatchEngine;
 use App\Domain\Football\Engine\MatchInput;
 use App\Domain\Football\Engine\ReplayHash;
@@ -63,8 +64,15 @@ class SimulateFriendly
             try {
                 $attendancePlan = $this->attendance->forecast($career, $home, $away);
                 $realized = $this->attendance->realize($attendancePlan, $career->creation_key.'|friendly|'.$data['seed']);
+                $rules = CompetitionEdition::where('career_id', $career->id)
+                    ->whereIn('status', ['scheduled', 'active'])->latest('id')->first()?->rules ?? [];
                 $snapshot = (new MatchInput([
                     'seed' => $data['seed'], 'engine_version' => FootballMatchEngine::VERSION,
+                    'rules' => [
+                        'max_substitutions' => (int) ($rules['max_substitutions'] ?? 3),
+                        'max_substitution_windows' => (int) ($rules['max_substitution_windows'] ?? 3),
+                        'hydration_breaks_enabled' => (bool) ($rules['hydration_breaks_enabled'] ?? false),
+                    ],
                     'home' => $this->snapshots->make($career, $home, ! $aiOnly, $away, true),
                     'away' => $this->snapshots->make($career, $away, false, $home, false),
                     'home_context' => $this->attendance->homeContext($attendancePlan, $realized),

@@ -10,7 +10,7 @@ use App\Application\Squads\SaveSquad;
 use App\Application\Squads\SquadSheet;
 use App\Domain\Career\Models\Career;
 use App\Domain\Football\Engine\ReplayHash;
-use App\Domain\Football\Engine\V4\Simulation;
+use App\Domain\Football\Engine\V5\Simulation;
 use App\Domain\Football\Models\InteractiveMatchSession;
 use App\Domain\GameDatabase\Models\ClubTemplate;
 use App\Models\User;
@@ -69,6 +69,22 @@ class InteractiveMatchMysqlConcurrencyTest extends TestCase
         $this->assertSame(3, $final->revision);
         $this->assertSame(3, $final->requests()->count());
         $this->assertSame(ReplayHash::of($expected), ReplayHash::of($final->state));
+
+        $at29 = app(InteractiveMatchService::class)->advance($user, $career, $session, [
+            'request_id' => (string) Str::uuid(), 'revision' => $final->revision, 'minutes' => 27,
+        ]);
+        $hydrationResults = $this->race([
+            $this->advanceJob($user, $career, $session, (string) Str::uuid(), $at29['revision']),
+            $this->advanceJob($user, $career, $session, (string) Str::uuid(), $at29['revision']),
+        ]);
+        $hydrationStatuses = array_column($hydrationResults, 'status');
+        sort($hydrationStatuses);
+        $this->assertSame(['ok', 'validation'], $hydrationStatuses);
+        $atBreak = $session->fresh();
+        $this->assertSame(30, $atBreak->minute);
+        $this->assertTrue($atBreak->paused);
+        $this->assertSame('hydration_break', $atBreak->state['status']);
+        $this->assertCount(1, array_filter($atBreak->state['events'], fn (array $event): bool => $event['type'] === 'hydration_break_start'));
     }
 
     public function test_independent_careers_advance_concurrently_without_cross_contamination(): void

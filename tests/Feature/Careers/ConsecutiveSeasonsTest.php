@@ -17,7 +17,7 @@ use App\Domain\Career\Models\StadiumProject;
 use App\Domain\Finance\Models\CareerFinancialTransaction;
 use App\Domain\Football\Engine\FootballMatchEngine;
 use App\Domain\Football\Engine\ReplayHash;
-use App\Domain\Football\Engine\V4\Simulation;
+use App\Domain\Football\Engine\V5\Simulation;
 use App\Domain\Football\Models\InteractiveMatchSession;
 use App\Domain\Football\Models\OfficialMatchResult;
 use App\Domain\GameDatabase\Models\ClubTemplate;
@@ -146,8 +146,7 @@ class ConsecutiveSeasonsTest extends TestCase
         $this->assertSame(540, CareerFinancialTransaction::where('career_id', $this->career->id)->whereNotNull('match_id')->count());
         $this->assertSame(270, OfficialMatchResult::where('career_id', $this->career->id)->distinct()->count('match_id'));
         $this->assertSame(540, CareerFinancialTransaction::where('career_id', $this->career->id)->whereNotNull('match_id')->distinct()->count('source_key'));
-        $this->assertSame(54, OfficialMatchResult::where('career_id', $this->career->id)->where('engine_version', Simulation::VERSION)->count());
-        $this->assertSame(216, OfficialMatchResult::where('career_id', $this->career->id)->where('engine_version', FootballMatchEngine::VERSION)->count());
+        $this->assertSame(270, OfficialMatchResult::where('career_id', $this->career->id)->where('engine_version', Simulation::VERSION)->count());
         $this->assertSame(54, InteractiveMatchSession::where('career_id', $this->career->id)->where('status', 'finalized')->count());
         foreach ($summaries as $number => $summary) {
             $season = $this->career->seasons()->where('number', $number)->sole();
@@ -173,7 +172,7 @@ class ConsecutiveSeasonsTest extends TestCase
         $this->get(route('careers.show', ['career' => $this->career, 'season' => 1]))->assertOk()
             ->assertSee('Classificação')->assertSee('Temporada 1')->assertSee($summaries[1][0]['standings'][0]['name']);
         $this->get(route('careers.show', ['career' => $this->career, 'season' => 99]))->assertNotFound();
-        foreach ([Simulation::VERSION, FootballMatchEngine::VERSION] as $version) {
+        foreach ([Simulation::VERSION] as $version) {
             $historical = OfficialMatchResult::where('career_id', $this->career->id)->where('engine_version', $version)->firstOrFail();
             $this->assertSame($historical->result_checksum, ReplayHash::of((new FootballMatchEngine)->simulate($historical->input)));
             $this->get(route('careers.results.show', [$this->career, $historical]))->assertOk()->assertSee('Motor '.$version);

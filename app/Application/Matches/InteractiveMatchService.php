@@ -11,7 +11,7 @@ use App\Domain\Career\Models\CompetitionEdition;
 use App\Domain\Football\Engine\FootballMatchEngine;
 use App\Domain\Football\Engine\MatchInput;
 use App\Domain\Football\Engine\ReplayHash;
-use App\Domain\Football\Engine\V4\Simulation;
+use App\Domain\Football\Engine\V5\Simulation;
 use App\Domain\Football\Models\InteractiveMatchRequest;
 use App\Domain\Football\Models\InteractiveMatchSession;
 use App\Models\User;
@@ -60,6 +60,7 @@ class InteractiveMatchService
                 'rules' => [
                     'max_substitutions' => (int) ($rules['max_substitutions'] ?? 3),
                     'max_substitution_windows' => (int) ($rules['max_substitution_windows'] ?? 3),
+                    'hydration_breaks_enabled' => (bool) ($rules['hydration_breaks_enabled'] ?? false),
                 ],
                 'home' => $teams['home'], 'away' => $teams['away'],
                 'home_context' => $this->attendance->homeContext($plan, $realized), 'decisions' => [],
@@ -94,6 +95,9 @@ class InteractiveMatchService
                 if ($locked->state['status'] === 'half_time') {
                     $simulation->resumeHalfTime();
                     $locked->state = $simulation->state();
+                } elseif ($locked->state['status'] === 'hydration_break') {
+                    $simulation->resumeHydrationBreak();
+                    $locked->state = $simulation->state();
                 }
                 $locked->paused = false;
             } else {
@@ -111,8 +115,8 @@ class InteractiveMatchService
             $simulation = new Simulation($locked->input, $locked->state);
             $state = $simulation->advance((int) ($data['minutes'] ?? 1));
             $locked->state = $state;
-            $locked->minute = $state['minute'];
-            if ($state['status'] === 'half_time') {
+            $locked->minute = $state['tick'];
+            if (in_array($state['status'], ['half_time', 'hydration_break'], true)) {
                 $locked->paused = true;
             }
             if (in_array($state['status'], ['finished', 'abandoned'], true)) {
@@ -130,7 +134,7 @@ class InteractiveMatchService
             $side = $locked->meta['human_side'];
             $simulation = new Simulation($locked->input, $locked->state);
             $locked->state = $simulation->applyDecision($side, $data['type'], (array) ($data['payload'] ?? []));
-            $locked->minute = $locked->state['minute'];
+            $locked->minute = $locked->state['tick'];
         });
     }
 
@@ -142,7 +146,7 @@ class InteractiveMatchService
                 $simulation->advance(120, true);
             }
             $locked->state = $simulation->state();
-            $locked->minute = $locked->state['minute'];
+            $locked->minute = $locked->state['tick'];
             $this->complete($locked, $simulation);
         });
     }
@@ -162,7 +166,8 @@ class InteractiveMatchService
         $humanDecisions = array_values(array_filter($state['decisions'], fn (array $decision): bool => $decision['actor'] === 'human' && in_array($decision['side'], ['home', 'away'], true)));
         $input = $session->input;
         $input['decisions'] = array_map(fn (array $decision): array => [
-            'minute' => $decision['minute'], 'side' => $decision['side'], 'type' => $decision['type'], 'payload' => $decision['payload'],
+            'tick' => $decision['tick'], 'minute' => $decision['minute'], 'added_minute' => $decision['added_minute'],
+            'side' => $decision['side'], 'type' => $decision['type'], 'payload' => $decision['payload'],
         ], $humanDecisions);
         $result = $simulation->result();
         if (ReplayHash::of($result) !== ReplayHash::of($this->engine->simulate($input))) {

@@ -52,6 +52,7 @@ class GameDatabaseSeederTest extends TestCase
         $this->assertSame(3, $ruleset->points_for_win);
         $this->assertSame(1, $ruleset->points_for_draw);
         $this->assertSame(0, $ruleset->points_for_loss);
+        $this->assertTrue($ruleset->hydration_breaks_enabled);
         $this->assertSame(['wins', 'goal_difference', 'goals_for', 'club_code'], $ruleset->tiebreakers);
         $this->assertCount(10, $competition->clubs);
         $this->assertTrue($ruleset->competitions->sole()->is($competition));

@@ -14,7 +14,7 @@ use App\Domain\Career\Models\CompetitionEdition;
 use App\Domain\Finance\Models\CareerFinancialTransaction;
 use App\Domain\Football\Engine\FootballMatchEngine;
 use App\Domain\Football\Engine\ReplayHash;
-use App\Domain\Football\Engine\V4\Simulation;
+use App\Domain\Football\Engine\V5\Simulation;
 use App\Domain\Football\Models\OfficialMatchResult;
 use App\Domain\GameDatabase\Models\ClubTemplate;
 use App\Models\User;
@@ -80,8 +80,7 @@ class InteractiveSimulationIntegrationTest extends TestCase
         }
 
         $official = OfficialMatchResult::where('career_id', $career->id)->get();
-        $this->assertSame(1, $official->where('engine_version', Simulation::VERSION)->count());
-        $this->assertSame(4, $official->where('engine_version', FootballMatchEngine::VERSION)->count());
+        $this->assertSame(5, $official->where('engine_version', Simulation::VERSION)->count());
         foreach ($official as $result) {
             $this->assertSame($result->home_goals, $result->result['home']['stats']['goals']);
             $this->assertSame($result->away_goals, $result->result['away']['stats']['goals']);

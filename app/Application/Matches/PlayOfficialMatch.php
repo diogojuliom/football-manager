@@ -40,6 +40,8 @@ class PlayOfficialMatch
         $humanId = $career->controlledClub->career_club_id;
         $home = $match->homeClub;
         $away = $match->awayClub;
+        $competitionRules = \App\Domain\Career\Models\CompetitionEdition::where('career_id', $career->id)
+            ->whereKey($match->competition_edition_id)->firstOrFail()->rules;
         $interactive = isset($operation->input['interactive_session_id']) && (int) ($operation->input['match_id'] ?? 0) === $match->id
             ? InteractiveMatchSession::where('career_id', $career->id)->where('match_id', $match->id)
                 ->whereKey($operation->input['interactive_session_id'])->where('status', 'finished')->firstOrFail()
@@ -74,6 +76,11 @@ class PlayOfficialMatch
             $input = (new MatchInput([
                 'engine_version' => $operation->input['engine_version'],
                 'seed' => hash('sha256', 'official-v1|'.$career->creation_key.'|'.$match->id),
+                'rules' => [
+                    'max_substitutions' => (int) ($competitionRules['max_substitutions'] ?? 3),
+                    'max_substitution_windows' => (int) ($competitionRules['max_substitution_windows'] ?? 3),
+                    'hydration_breaks_enabled' => (bool) ($competitionRules['hydration_breaks_enabled'] ?? false),
+                ],
                 'home' => $teams['home'], 'away' => $teams['away'], 'home_context' => $this->attendance->homeContext($plan, $realized),
             ]))->data;
             $result = $this->engine->simulate($input);

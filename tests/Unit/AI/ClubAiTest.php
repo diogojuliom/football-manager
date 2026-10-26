@@ -202,8 +202,10 @@ class ClubAiTest extends TestCase
         $this->assertSame('26814de60f08eb15e0b44314f48d11d4431911e79432d338e3127a57080d2900', ReplayHash::of($legacy));
         unset($input['engine_version']);
         $result = (new FootballMatchEngine)->simulate($input);
-        $this->assertSame('3.0.0', $result['engine_version']);
-        $this->assertSame($input['home']['tactics'], $result['home']['final_tactics']);
+        $this->assertSame(FootballMatchEngine::VERSION, $result['engine_version']);
+        $this->assertSame($input['home']['tactics'] + [
+            'style' => 'balanced', 'attack_direction' => 'balanced', 'marking' => 'light',
+        ], $result['home']['final_tactics']);
         $this->assertCount(0, array_filter($result['events'], fn ($event) => $event['type'] === 'tactical_change'));
         $input['home']['controller'] = 'ai';
         $input['home']['ai_policy_version'] = 'unknown';

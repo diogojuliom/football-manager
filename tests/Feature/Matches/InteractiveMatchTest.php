@@ -10,9 +10,10 @@ use App\Application\Squads\SaveSquad;
 use App\Application\Squads\SquadSheet;
 use App\Domain\Career\CareerState;
 use App\Domain\Career\Models\Career;
+use App\Domain\Career\Models\CompetitionEdition;
 use App\Domain\Football\Engine\FootballMatchEngine;
 use App\Domain\Football\Engine\ReplayHash;
-use App\Domain\Football\Engine\V4\Simulation;
+use App\Domain\Football\Engine\V5\Simulation;
 use App\Domain\Football\Models\InteractiveMatchSession;
 use App\Domain\Football\Models\OfficialMatchResult;
 use App\Domain\GameDatabase\Models\ClubTemplate;
@@ -42,6 +43,8 @@ class InteractiveMatchTest extends TestCase
             'name' => 'Ao vivo', 'coach_name' => 'Ana', 'club_template_id' => ClubTemplate::firstOrFail()->id,
             'request_id' => '00000000-0000-4000-8000-000000000001',
         ]);
+        $edition = CompetitionEdition::where('career_id', $this->career->id)->sole();
+        $edition->update(['rules' => array_replace($edition->rules, ['hydration_breaks_enabled' => false])]);
         app(SaveSquad::class)->execute($this->owner, $this->career, app(SquadSheet::class)->forCareer($this->career)['settings']);
         app(CareerProgressionService::class)->execute($this->owner, $this->career, [
             'action' => CareerProgressionService::ADVANCE_TO_NEXT_MATCH, 'request_id' => (string) Str::uuid(),
@@ -170,7 +173,7 @@ class InteractiveMatchTest extends TestCase
         $this->assertSame($expectedMinute, $after['minute']);
         $this->assertSame($before['minute'] + 1, $after['minute']);
         foreach (array_slice($after['state']['events'], $eventCount) as $event) {
-            $this->assertSame($expectedMinute, $event['minute'], 'Um evento foi antecipado ou atrasado.');
+            $this->assertSame($expectedMinute, $event['tick'] ?? $event['minute'], 'Um evento foi antecipado ou atrasado.');
         }
 
         return $after;
@@ -181,13 +184,14 @@ class InteractiveMatchTest extends TestCase
         $events = $result['events'];
         $this->assertSame(range(1, count($events)), array_column($events, 'sequence'));
         $minutes = array_column($events, 'minute');
-        $ordered = $minutes;
+        $ticks = array_column($events, 'tick');
+        $ordered = $ticks;
         sort($ordered);
-        $this->assertSame($ordered, $minutes);
-        $this->assertSame($result['minutes'], max($minutes));
+        $this->assertSame($ordered, $ticks);
+        $this->assertSame($result['minutes'], max($ticks));
         $this->assertCount(1, array_filter($events, fn (array $event): bool => $event['type'] === 'kickoff' && $event['minute'] === 0));
         $this->assertCount(1, array_filter($events, fn (array $event): bool => $event['type'] === 'half_time' && $event['minute'] === 45));
-        $this->assertCount(1, array_filter($events, fn (array $event): bool => $event['type'] === 'full_time' && $event['minute'] === $result['minutes']));
+        $this->assertCount(1, array_filter($events, fn (array $event): bool => $event['type'] === 'full_time' && $event['tick'] === $result['minutes']));
         $this->assertCount($result['minutes'], array_filter($events, fn (array $event): bool => $event['type'] === 'possession'));
 
         foreach (['home', 'away'] as $side) {

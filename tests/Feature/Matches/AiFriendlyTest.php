@@ -64,9 +64,11 @@ class AiFriendlyTest extends TestCase
         $this->assertDatabaseCount('career_lineups', 0);
         $this->post(route('careers.friendlies.store', $this->career), $this->payload())->assertRedirect()->assertSessionHasNoErrors();
         $simulation = MatchSimulation::sole();
-        $this->assertSame('3.0.0', $simulation->engine_version);
+        $this->assertSame(FootballMatchEngine::VERSION, $simulation->engine_version);
         $this->assertSame('finished', $simulation->result['status']);
-        $this->assertSame(90, $simulation->result['minutes']);
+        $this->assertSame(90 + $simulation->result['added_time'], $simulation->result['minutes']);
+        $this->assertCount(2, array_filter($simulation->result['events'], fn (array $event): bool => $event['type'] === 'hydration_break_start'));
+        $this->assertCount(2, array_filter($simulation->result['events'], fn (array $event): bool => $event['type'] === 'hydration_break_end'));
         foreach (['home', 'away'] as $side) {
             $this->assertSame('ai', $simulation->input[$side]['controller']);
             $this->assertSame('1.0.0', $simulation->input[$side]['ai_policy_version']);

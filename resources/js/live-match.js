@@ -1,8 +1,12 @@
-import { LiveMatchClock, LIVE_MATCH_SPEEDS } from './live-match-clock';
+import { LiveMatchClock, LIVE_MATCH_SPEEDS } from './live-match-clock.js';
 
 const readJson = (root, selector) => JSON.parse(root.querySelector(selector).textContent);
 const activePlayers = (team) => Object.values(team.active);
 const uuid = () => crypto.randomUUID();
+export const formatMatchClock = (item) => {
+    const added = Number(item.added_minute || 0);
+    return added > 0 ? `${item.minute}+${added}'` : `${item.minute}'`;
+};
 
 class LiveMatch {
     constructor(root) {
@@ -135,15 +139,22 @@ class LiveMatch {
 
     team() { return this.payload.state.teams[this.side]; }
 
+    formatClock(item) {
+        return formatMatchClock(item);
+    }
+
     render() {
         const state = this.payload.state;
         const home = state.teams.home;
         const away = state.teams.away;
-        this.root.querySelector('[data-live-clock]').textContent = state.minute > 90 ? `90+${state.minute - 90}'` : `${state.minute}'`;
+        this.root.querySelector('[data-live-clock]').textContent = this.formatClock(state);
         this.root.querySelector('[data-home-score]').textContent = home.stats.goals;
         this.root.querySelector('[data-away-score]').textContent = away.stats.goals;
         this.root.querySelector('[data-round-live]').textContent = `${home.stats.goals} × ${away.stats.goals}`;
-        this.root.querySelector('[data-live-phase]').textContent = state.status === 'half_time' ? 'Intervalo' : (this.payload.status === 'finished' ? 'Encerrada' : (this.payload.paused ? 'Pausada' : 'Em andamento'));
+        this.root.querySelector('[data-live-phase]').textContent = state.status === 'half_time' ? 'Intervalo' : (state.status === 'hydration_break' ? 'Parada técnica' : (this.payload.status === 'finished' ? 'Encerrada' : (this.payload.paused ? 'Pausada' : 'Em andamento')));
+        const hydration = this.root.querySelector('[data-live-hydration]');
+        hydration.hidden = state.status !== 'hydration_break';
+        hydration.querySelector('[data-live-hydration-minute]').textContent = this.formatClock(state);
         const toggle = this.root.querySelector('[data-live-toggle]');
         toggle.textContent = this.payload.paused ? '▶ Continuar' : 'Ⅱ Pausar';
         toggle.disabled = this.payload.status !== 'running';
@@ -224,8 +235,8 @@ class LiveMatch {
     }
 
     renderEvents() {
-        const relevant = ['kickoff', 'goal', 'opportunity', 'shot', 'foul', 'yellow_card', 'red_card', 'injury', 'substitution', 'tactical_change', 'half_time', 'full_time'];
-        const labels = { kickoff: 'Bola rolando', goal: 'Gol', opportunity: 'Grande oportunidade', shot: 'Finalização', foul: 'Falta', yellow_card: 'Cartão amarelo', red_card: 'Cartão vermelho', injury: 'Lesão', substitution: 'Substituição', tactical_change: 'Mudança tática', half_time: 'Intervalo', full_time: 'Fim de jogo' };
+        const relevant = ['kickoff', 'goal', 'opportunity', 'shot', 'foul', 'yellow_card', 'red_card', 'injury', 'substitution', 'tactical_change', 'hydration_break_start', 'hydration_break_end', 'half_time', 'full_time'];
+        const labels = { kickoff: 'Bola rolando', goal: 'Gol', opportunity: 'Grande oportunidade', shot: 'Finalização', foul: 'Falta', yellow_card: 'Cartão amarelo', red_card: 'Cartão vermelho', injury: 'Lesão', substitution: 'Substituição', tactical_change: 'Mudança tática', hydration_break_start: 'Início da parada para hidratação', hydration_break_end: 'Fim da parada para hidratação', half_time: 'Intervalo', full_time: 'Fim de jogo' };
         const events = this.payload.state.events.filter((event) => relevant.includes(event.type)).slice(-30).reverse();
         const list = this.root.querySelector('[data-live-events]');
         list.replaceChildren(...events.map((event) => {
@@ -233,7 +244,7 @@ class LiveMatch {
             const team = event.side ? this.payload.state.teams[event.side] : null;
             const player = team && event.player_id ? team.players[event.player_id] : null;
             item.innerHTML = '<time></time><span><strong></strong><small></small></span>';
-            item.querySelector('time').textContent = event.minute > 90 ? `90+${event.minute - 90}'` : `${event.minute}'`;
+            item.querySelector('time').textContent = this.formatClock(event);
             item.querySelector('strong').textContent = labels[event.type];
             item.querySelector('small').textContent = [team?.name, player?.name].filter(Boolean).join(' · ') || 'Partida';
             return item;
@@ -248,7 +259,7 @@ class LiveMatch {
 
     renderStatus() {
         const state = this.payload.state;
-        this.status(state.status === 'half_time' ? 'Intervalo: faça seus ajustes e clique em continuar.' : (this.payload.status === 'finished' ? 'Fim de jogo. Registre o resultado para atualizar a carreira.' : (this.payload.paused ? 'Partida pausada. Faça ajustes ou continue.' : `Simulação em ${String(this.speed).replace('.', ',')}×.`)));
+        this.status(state.status === 'half_time' ? 'Intervalo: faça seus ajustes e clique em continuar.' : (state.status === 'hydration_break' ? 'Parada técnica para hidratação: faça seus ajustes e clique em continuar partida.' : (this.payload.status === 'finished' ? 'Fim de jogo. Registre o resultado para atualizar a carreira.' : (this.payload.paused ? 'Partida pausada. Faça ajustes ou continue.' : `Simulação em ${String(this.speed).replace('.', ',')}×.`))));
     }
 
     status(message) { this.root.querySelector('[data-live-status]').textContent = message; }

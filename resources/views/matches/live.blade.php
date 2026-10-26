@@ -19,6 +19,11 @@
         <div class="live-team away"><span>{{ collect(explode(' ', $match->awayClub->name))->map(fn($word) => mb_substr($word,0,1))->take(3)->implode('') }}</span><strong>{{ $match->awayClub->name }}</strong></div>
     </header>
 
+    <section class="live-hydration" data-live-hydration hidden role="status" aria-live="assertive">
+        <span aria-hidden="true">💧</span>
+        <div><strong>Parada técnica para hidratação</strong><p><b data-live-hydration-minute>30'</b> · Pausa regulamentar de três minutos. Os jogadores estão se hidratando e recebendo orientações.</p></div>
+    </section>
+
     <section class="live-controls" aria-label="Controles da simulação">
         <button type="button" class="primary" data-live-toggle>▶ Continuar</button>
         <label for="live-speed">Velocidade<select id="live-speed" data-live-speed>@foreach(['0.5','0.75','1','1.25','1.5','1.75','2'] as $speed)<option value="{{ $speed }}" @selected($speed==='1')>{{ str_replace('.', ',', $speed) }}×</option>@endforeach</select></label>

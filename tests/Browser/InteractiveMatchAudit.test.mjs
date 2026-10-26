@@ -192,15 +192,35 @@ test('fluxo interativo real permanece sincronizado, responsivo e recuperável', 
         await page.click('[data-live-toggle]');
         await waitForText(page, '[data-live-phase]', 'Em andamento');
         await page.reload({ waitUntil: 'domcontentloaded' });
-        const halfTime = await advanceFromRenderedState(page, 45);
-        assert.equal(halfTime.minute, 45);
+        const firstHydration = await advanceFromRenderedState(page, 30);
+        assert.equal(firstHydration.minute, 30);
+        assert.equal(firstHydration.paused, true);
+        assert.equal(firstHydration.state.status, 'hydration_break');
+        assert.equal(firstHydration.state.hydration_breaks.first_half.status, 'active');
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        assert.equal(await pageText(page, '[data-live-phase]'), 'Parada técnica');
+        assert.equal(await pageText(page, '[data-live-clock]'), "30'");
+        assert.equal(await page.$eval('[data-live-hydration]', (element) => element.hidden), false);
+        assert.match(await pageText(page, '[data-live-hydration]'), /Pausa regulamentar de três minutos/);
+        await page.select('[data-live-tactics-form] [name=attack_direction]', 'center');
+        await Promise.all([
+            page.waitForResponse((response) => response.url().includes('/live/decision') && response.request().method() === 'POST'),
+            page.click('[data-live-tactics-form] button[type=submit]'),
+        ]);
+        await page.click('[data-live-toggle]');
+        await waitForText(page, '[data-live-phase]', 'Em andamento');
+        await page.reload({ waitUntil: 'domcontentloaded' });
+
+        const halfTime = await advanceFromRenderedState(page, 48);
+        assert.equal(halfTime.minute, 48);
         assert.equal(halfTime.paused, true);
         assert.equal(halfTime.state.status, 'half_time');
         assert.equal(Math.max(...halfTime.state.events.map((event) => event.minute)), 45);
+        assert.equal(halfTime.state.added_minute, 3);
         const firstHalfEvents = structuredClone(halfTime.state.events);
         await page.reload({ waitUntil: 'domcontentloaded' });
         assert.equal(await pageText(page, '[data-live-phase]'), 'Intervalo');
-        assert.equal(await pageText(page, '[data-live-clock]'), "45'");
+        assert.equal(await pageText(page, '[data-live-clock]'), "45+3'");
         evidence.layouts.tablet = await assertResponsive(page, 768, 1024);
         evidence.layouts.mobile = await assertResponsive(page, 390, 844);
 
@@ -222,13 +242,25 @@ test('fluxo interativo real permanece sincronizado, responsivo e recuperável', 
         await page.click('[data-live-toggle]');
         await waitForText(page, '[data-live-phase]', 'Em andamento');
         await page.reload({ waitUntil: 'domcontentloaded' });
+        const secondHydration = await advanceFromRenderedState(page, 78);
+        assert.equal(secondHydration.minute, 78);
+        assert.equal(secondHydration.state.minute, 75);
+        assert.equal(secondHydration.state.status, 'hydration_break');
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        assert.equal(await pageText(page, '[data-live-phase]'), 'Parada técnica');
+        assert.equal(await pageText(page, '[data-live-clock]'), "75'");
+        await page.click('[data-live-toggle]');
+        await waitForText(page, '[data-live-phase]', 'Em andamento');
+        await page.reload({ waitUntil: 'domcontentloaded' });
         const completed = await advanceFromRenderedState(page);
         assert.equal(completed.status, 'finished');
-        assert.ok(completed.minute >= 91 && completed.minute <= 95);
+        assert.ok(completed.minute >= 97 && completed.minute <= 101);
         assert.deepEqual(completed.state.events.slice(0, firstHalfEvents.length), firstHalfEvents);
         assert.deepEqual(completed.state.events.map((event) => event.sequence), Array.from({ length: completed.state.events.length }, (_, index) => index + 1));
-        const eventMinutes = completed.state.events.map((event) => event.minute);
-        assert.deepEqual(eventMinutes, [...eventMinutes].sort((left, right) => left - right));
+        const eventTicks = completed.state.events.map((event) => event.tick);
+        assert.deepEqual(eventTicks, [...eventTicks].sort((left, right) => left - right));
+        assert.equal(completed.state.events.filter((event) => event.type === 'hydration_break_start').length, 2);
+        assert.equal(completed.state.events.filter((event) => event.type === 'hydration_break_end').length, 2);
         for (const side of ['home', 'away']) {
             const goals = completed.state.events.filter((event) => event.type === 'goal' && event.side === side).length;
             assert.equal(goals, completed.state.teams[side].stats.goals);
@@ -269,9 +301,8 @@ test('fluxo interativo real permanece sincronizado, responsivo e recuperável', 
         await waitForText(page, '[data-live-phase]', 'Em andamento');
         await page.reload({ waitUntil: 'domcontentloaded' });
         let second = await advanceFromRenderedState(page, 30);
+        assert.equal(second.state.status, 'hydration_break');
         await page.reload({ waitUntil: 'domcontentloaded' });
-        await page.click('[data-live-toggle]');
-        await waitForText(page, '[data-live-phase]', 'Pausada');
         await page.select('[data-live-tactics-form] [name=formation]', '4-2-4');
         await page.select('[data-live-tactics-form] [name=style]', 'total_attack');
         await page.select('[data-live-tactics-form] [name=attack_direction]', 'wings');
@@ -281,14 +312,14 @@ test('fluxo interativo real permanece sincronizado, responsivo e recuperável', 
         await page.click('[data-live-toggle]');
         await waitForText(page, '[data-live-phase]', 'Em andamento');
         await page.reload({ waitUntil: 'domcontentloaded' });
-        second = await advanceFromRenderedState(page, 45);
+        second = await advanceFromRenderedState(page, 48);
         assert.equal(second.state.status, 'half_time');
         await page.reload({ waitUntil: 'domcontentloaded' });
         await page.click('[data-live-toggle]');
         await waitForText(page, '[data-live-phase]', 'Em andamento');
         await page.reload({ waitUntil: 'domcontentloaded' });
-        second = await advanceFromRenderedState(page, 60);
-        assert.equal(second.minute, 60);
+        second = await advanceFromRenderedState(page, 63);
+        assert.equal(second.state.minute, 60);
         await page.reload({ waitUntil: 'domcontentloaded' });
         await page.click('[data-live-toggle]');
         await waitForText(page, '[data-live-phase]', 'Pausada');
