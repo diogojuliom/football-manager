@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Domain\Football\Engine\V6\AddedTimeRules;
+use App\Domain\Football\Engine\V6\Simulation;
 use App\Domain\GameDatabase\Models\ClubTemplate;
 use App\Domain\GameDatabase\Models\CompetitionRuleset;
 use App\Domain\GameDatabase\Models\CompetitionTemplate;
@@ -35,7 +37,11 @@ class GameDatabaseSeeder extends Seeder
             $versionKey = ['game_database_version_id' => $version->id];
             $ruleset = CompetitionRuleset::firstOrCreate(
                 $versionKey + ['code' => $data['ruleset']['code']],
-                $data['ruleset'],
+                $data['ruleset'] + [
+                    'match_engine_version' => Simulation::VERSION,
+                    'dynamic_added_time_enabled' => true,
+                    'added_time_rules' => AddedTimeRules::DEFAULTS,
+                ],
             );
             $competition = CompetitionTemplate::firstOrCreate(
                 $versionKey + ['code' => $data['competition']['code']],

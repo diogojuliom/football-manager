@@ -9,6 +9,8 @@ use App\Domain\Career\Models\CompetitionEdition;
 use App\Domain\Football\Engine\FootballMatchEngine;
 use App\Domain\Football\Engine\MatchInput;
 use App\Domain\Football\Engine\ReplayHash;
+use App\Domain\Football\Engine\V5\Simulation as V5Simulation;
+use App\Domain\Football\Engine\V6\AddedTimeRules;
 use App\Domain\Football\Models\MatchSimulation;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -66,12 +68,15 @@ class SimulateFriendly
                 $realized = $this->attendance->realize($attendancePlan, $career->creation_key.'|friendly|'.$data['seed']);
                 $rules = CompetitionEdition::where('career_id', $career->id)
                     ->whereIn('status', ['scheduled', 'active'])->latest('id')->first()?->rules ?? [];
+                $engineVersion = $rules['match_engine_version'] ?? V5Simulation::VERSION;
                 $snapshot = (new MatchInput([
-                    'seed' => $data['seed'], 'engine_version' => FootballMatchEngine::VERSION,
+                    'seed' => $data['seed'], 'engine_version' => $engineVersion,
                     'rules' => [
                         'max_substitutions' => (int) ($rules['max_substitutions'] ?? 3),
                         'max_substitution_windows' => (int) ($rules['max_substitution_windows'] ?? 3),
                         'hydration_breaks_enabled' => (bool) ($rules['hydration_breaks_enabled'] ?? false),
+                        'dynamic_added_time_enabled' => (bool) ($rules['dynamic_added_time_enabled'] ?? false),
+                        'added_time_rules' => $rules['added_time_rules'] ?? AddedTimeRules::DEFAULTS,
                     ],
                     'home' => $this->snapshots->make($career, $home, ! $aiOnly, $away, true),
                     'away' => $this->snapshots->make($career, $away, false, $home, false),
@@ -85,7 +90,7 @@ class SimulateFriendly
             return MatchSimulation::create([
                 'career_id' => $career->id, 'home_club_id' => $home->id, 'away_club_id' => $away->id,
                 'request_id' => $data['request_id'], 'request_checksum' => $requestHash,
-                'seed' => $snapshot['seed'], 'engine_version' => FootballMatchEngine::VERSION,
+                'seed' => $snapshot['seed'], 'engine_version' => $snapshot['engine_version'],
                 'attendance_plan' => $attendancePlan,
                 'input' => $snapshot, 'result' => $result,
                 'input_checksum' => ReplayHash::of($snapshot), 'result_checksum' => ReplayHash::of($result),

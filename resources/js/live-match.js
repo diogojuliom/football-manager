@@ -235,8 +235,8 @@ class LiveMatch {
     }
 
     renderEvents() {
-        const relevant = ['kickoff', 'goal', 'opportunity', 'shot', 'foul', 'yellow_card', 'red_card', 'injury', 'substitution', 'tactical_change', 'hydration_break_start', 'hydration_break_end', 'half_time', 'full_time'];
-        const labels = { kickoff: 'Bola rolando', goal: 'Gol', opportunity: 'Grande oportunidade', shot: 'Finalização', foul: 'Falta', yellow_card: 'Cartão amarelo', red_card: 'Cartão vermelho', injury: 'Lesão', substitution: 'Substituição', tactical_change: 'Mudança tática', hydration_break_start: 'Início da parada para hidratação', hydration_break_end: 'Fim da parada para hidratação', half_time: 'Intervalo', full_time: 'Fim de jogo' };
+        const relevant = ['kickoff', 'goal', 'opportunity', 'shot', 'foul', 'yellow_card', 'red_card', 'injury', 'substitution', 'tactical_change', 'hydration_break_start', 'hydration_break_end', 'added_time_announced', 'added_time_extended', 'half_time', 'full_time'];
+        const labels = { kickoff: 'Bola rolando', goal: 'Gol', opportunity: 'Grande oportunidade', shot: 'Finalização', foul: 'Falta', yellow_card: 'Cartão amarelo', red_card: 'Cartão vermelho', injury: 'Lesão', substitution: 'Substituição', tactical_change: 'Mudança tática', hydration_break_start: 'Início da parada para hidratação', hydration_break_end: 'Fim da parada para hidratação', added_time_announced: 'Acréscimos anunciados', added_time_extended: 'Acréscimos prolongados', half_time: 'Intervalo', full_time: 'Fim de jogo' };
         const events = this.payload.state.events.filter((event) => relevant.includes(event.type)).slice(-30).reverse();
         const list = this.root.querySelector('[data-live-events]');
         list.replaceChildren(...events.map((event) => {
@@ -246,7 +246,10 @@ class LiveMatch {
             item.innerHTML = '<time></time><span><strong></strong><small></small></span>';
             item.querySelector('time').textContent = this.formatClock(event);
             item.querySelector('strong').textContent = labels[event.type];
-            item.querySelector('small').textContent = [team?.name, player?.name].filter(Boolean).join(' · ') || 'Partida';
+            const addedTime = event.type === 'added_time_announced'
+                ? `Mais ${event.data.minutes} minuto${event.data.minutes === 1 ? '' : 's'} de acréscimos`
+                : (event.type === 'added_time_extended' ? `Prorrogado para ${event.data.minutes} minuto${event.data.minutes === 1 ? '' : 's'}` : null);
+            item.querySelector('small').textContent = addedTime || [team?.name, player?.name].filter(Boolean).join(' · ') || 'Partida';
             return item;
         }));
     }

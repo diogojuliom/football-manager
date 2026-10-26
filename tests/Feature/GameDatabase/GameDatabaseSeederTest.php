@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\GameDatabase;
 
+use App\Domain\Football\Engine\V6\AddedTimeRules;
+use App\Domain\Football\Engine\V6\Simulation;
 use App\Domain\GameDatabase\Models\ClubTemplate;
 use App\Domain\GameDatabase\Models\CompetitionRuleset;
 use App\Domain\GameDatabase\Models\CompetitionTemplate;
@@ -53,6 +55,9 @@ class GameDatabaseSeederTest extends TestCase
         $this->assertSame(1, $ruleset->points_for_draw);
         $this->assertSame(0, $ruleset->points_for_loss);
         $this->assertTrue($ruleset->hydration_breaks_enabled);
+        $this->assertSame(Simulation::VERSION, $ruleset->match_engine_version);
+        $this->assertTrue($ruleset->dynamic_added_time_enabled);
+        $this->assertSame(AddedTimeRules::DEFAULTS, $ruleset->added_time_rules);
         $this->assertSame(['wins', 'goal_difference', 'goals_for', 'club_code'], $ruleset->tiebreakers);
         $this->assertCount(10, $competition->clubs);
         $this->assertTrue($ruleset->competitions->sole()->is($competition));
@@ -230,6 +235,17 @@ class GameDatabaseSeederTest extends TestCase
                 $this->assertNotEmpty($exception->errors());
             }
         }
+    }
+
+    public function test_ruleset_rejects_invalid_dynamic_added_time_configuration(): void
+    {
+        $this->seed();
+        $ruleset = CompetitionRuleset::firstOrFail();
+        $rules = $ruleset->added_time_rules;
+        $rules['goal_celebration_seconds'] = [50, 25];
+
+        $this->expectException(ValidationException::class);
+        $ruleset->update(['added_time_rules' => $rules]);
     }
 
     public function test_club_rejects_negative_starting_finances(): void

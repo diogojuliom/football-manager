@@ -10,7 +10,7 @@ use App\Application\Squads\SaveSquad;
 use App\Application\Squads\SquadSheet;
 use App\Domain\Career\Models\Career;
 use App\Domain\Football\Engine\ReplayHash;
-use App\Domain\Football\Engine\V5\Simulation;
+use App\Domain\Football\Engine\V6\Simulation;
 use App\Domain\Football\Models\InteractiveMatchSession;
 use App\Domain\GameDatabase\Models\ClubTemplate;
 use App\Models\User;
@@ -85,6 +85,12 @@ class InteractiveMatchMysqlConcurrencyTest extends TestCase
         $this->assertTrue($atBreak->paused);
         $this->assertSame('hydration_break', $atBreak->state['status']);
         $this->assertCount(1, array_filter($atBreak->state['events'], fn (array $event): bool => $event['type'] === 'hydration_break_start'));
+        $hydrationContributions = array_values(array_filter(
+            $atBreak->state['lost_time']['first_half']['contributions'],
+            fn (array $item): bool => $item['type'] === 'hydration_break_start',
+        ));
+        $this->assertCount(1, $hydrationContributions);
+        $this->assertSame(180, $hydrationContributions[0]['seconds']);
     }
 
     public function test_independent_careers_advance_concurrently_without_cross_contamination(): void

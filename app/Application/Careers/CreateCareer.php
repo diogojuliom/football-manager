@@ -71,7 +71,7 @@ class CreateCareer
                 'career_season_id' => $season->id,
                 'competition_template_id' => $competition->id,
                 'name' => $competition->name,
-                'rules' => $ruleset->only(['format', 'club_count', 'legs', 'round_count', 'match_count', 'points_for_win', 'points_for_draw', 'points_for_loss', 'tiebreakers', 'max_substitutes', 'max_substitutions', 'max_substitution_windows', 'hydration_breaks_enabled']),
+                'rules' => $ruleset->only(['format', 'club_count', 'legs', 'round_count', 'match_count', 'points_for_win', 'points_for_draw', 'points_for_loss', 'tiebreakers', 'max_substitutes', 'max_substitutions', 'max_substitution_windows', 'hydration_breaks_enabled', 'match_engine_version', 'dynamic_added_time_enabled', 'added_time_rules']),
                 'status' => 'scheduled',
             ]);
 

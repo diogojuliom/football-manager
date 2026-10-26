@@ -17,7 +17,7 @@ use App\Domain\Career\Models\StadiumProject;
 use App\Domain\Finance\Models\CareerFinancialTransaction;
 use App\Domain\Football\Engine\FootballMatchEngine;
 use App\Domain\Football\Engine\ReplayHash;
-use App\Domain\Football\Engine\V5\Simulation;
+use App\Domain\Football\Engine\V6\Simulation;
 use App\Domain\Football\Models\InteractiveMatchSession;
 use App\Domain\Football\Models\OfficialMatchResult;
 use App\Domain\GameDatabase\Models\ClubTemplate;

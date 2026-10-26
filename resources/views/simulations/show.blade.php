@@ -8,7 +8,7 @@
         foreach ($result[$side]['players'] as $player) { $names[$player['player_id']] = $player['name']; }
     }
     $reasons = ['chasing_goal' => 'Buscar empate ou virada', 'protecting_lead' => 'Proteger a vantagem', 'numerical_disadvantage' => 'Reorganizar após expulsão', 'numerical_advantage' => 'Explorar vantagem numérica', 'conserve_energy' => 'Poupar energia', 'fatigue' => 'Desgaste físico', 'booking' => 'Jogador amarelado', 'refresh' => 'Renovar a equipe'];
-    $labels = ['kickoff' => 'Início da partida', 'possession' => 'Posse de bola', 'build_up' => 'Construção de jogada', 'opportunity' => 'Oportunidade', 'shot' => 'Finalização', 'save' => 'Defesa do goleiro', 'goal' => 'Gol', 'assist' => 'Assistência', 'foul' => 'Falta', 'yellow_card' => 'Cartão amarelo', 'red_card' => 'Expulsão', 'substitution' => 'Substituição', 'positions_change' => 'Troca de posições', 'tactical_change' => 'Ajuste tático', 'hydration_break_start' => 'Início da parada para hidratação', 'hydration_break_end' => 'Fim da parada para hidratação', 'fatigue' => 'Desgaste físico', 'injury' => 'Lesão', 'half_time' => 'Intervalo', 'full_time' => 'Fim da partida', 'abandoned' => 'Partida interrompida'];
+    $labels = ['kickoff' => 'Início da partida', 'possession' => 'Posse de bola', 'build_up' => 'Construção de jogada', 'opportunity' => 'Oportunidade', 'shot' => 'Finalização', 'save' => 'Defesa do goleiro', 'goal' => 'Gol', 'assist' => 'Assistência', 'foul' => 'Falta', 'yellow_card' => 'Cartão amarelo', 'red_card' => 'Expulsão', 'substitution' => 'Substituição', 'positions_change' => 'Troca de posições', 'tactical_change' => 'Ajuste tático', 'hydration_break_start' => 'Início da parada para hidratação', 'hydration_break_end' => 'Fim da parada para hidratação', 'added_time_announced' => 'Acréscimos anunciados', 'added_time_extended' => 'Acréscimos prolongados', 'fatigue' => 'Desgaste físico', 'injury' => 'Lesão', 'half_time' => 'Intervalo', 'full_time' => 'Fim da partida', 'abandoned' => 'Partida interrompida'];
 @endphp
 <header class="page-header"><div class="page-header-copy"><a class="breadcrumb" href="{{ $official ? route('careers.show', $career) : route('careers.friendlies.create', $career) }}">← {{ $official ? 'Voltar à carreira' : 'Voltar aos amistosos' }}</a><p class="eyebrow">{{ $official ? 'Partida oficial' : 'Amistoso' }} · Encerrada</p><h1>Relatório da partida</h1></div></header>
 <section class="score-hero"><span class="badge">{{ $result['minutes'] }} minutos</span><div class="match-up"><strong>{{ $result['home']['name'] }}</strong><span class="score">{{ $result['home']['stats']['goals'] }} <em>×</em> {{ $result['away']['stats']['goals'] }}</span><strong>{{ $result['away']['name'] }}</strong></div><p>Motor {{ $simulation->engine_version }} · Seed: {{ $simulation->seed }}</p></section>
@@ -41,12 +41,13 @@
 @endif
 <section class="panel"><div class="panel-header"><div><h2>Eventos destacados</h2><p>Momentos decisivos em ordem cronológica</p></div></div><ol class="event-list">
 @foreach($result['events'] as $event)
-    @if(in_array($event['type'], ['goal', 'assist', 'yellow_card', 'red_card', 'substitution', 'abandoned', 'tactical_change'], true))
-    <li><time>{{ $event['minute'] }}'</time><span>{{ $labels[$event['type']] }}: {{ $names[$event['player_id']] ?? '' }}
+    @if(in_array($event['type'], ['goal', 'assist', 'yellow_card', 'red_card', 'substitution', 'abandoned', 'tactical_change', 'added_time_announced', 'added_time_extended'], true))
+    <li><time>{{ $event['minute'] }}@if(($event['added_minute'] ?? 0) > 0)+{{ $event['added_minute'] }}@endif'</time><span>{{ $labels[$event['type']] }}: {{ $names[$event['player_id']] ?? '' }}
         @if($event['type'] === 'substitution') no lugar de {{ $names[$event['data']['out_player_id']] }} @endif
         @if(isset($event['data']['reason']) && isset($reasons[$event['data']['reason']])) — {{ $reasons[$event['data']['reason']] }} @endif
         @if($event['type'] === 'tactical_change') ({{ $result[$event['side']]['name'] }}) @endif
         @if($event['type'] === 'red_card' && $event['data']['reason'] === 'second_yellow') (segundo amarelo) @endif
+        @if(in_array($event['type'], ['added_time_announced', 'added_time_extended'], true)) mais {{ $event['data']['minutes'] }} minuto(s) @endif
     </span></li>
     @endif
 @endforeach

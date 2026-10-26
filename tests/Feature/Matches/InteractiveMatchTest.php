@@ -13,7 +13,7 @@ use App\Domain\Career\Models\Career;
 use App\Domain\Career\Models\CompetitionEdition;
 use App\Domain\Football\Engine\FootballMatchEngine;
 use App\Domain\Football\Engine\ReplayHash;
-use App\Domain\Football\Engine\V5\Simulation;
+use App\Domain\Football\Engine\V6\Simulation;
 use App\Domain\Football\Models\InteractiveMatchSession;
 use App\Domain\Football\Models\OfficialMatchResult;
 use App\Domain\GameDatabase\Models\ClubTemplate;
@@ -110,8 +110,13 @@ class InteractiveMatchTest extends TestCase
         for ($expectedMinute = 11; $expectedMinute <= 45; $expectedMinute++) {
             $current = $this->advanceOneMinute($service, $session, $current, $expectedMinute);
         }
+        while (! $current['paused']) {
+            $current = $this->advanceOneMinute($service, $session, $current, $current['minute'] + 1);
+        }
         $this->assertTrue($current['paused']);
         $this->assertSame('half_time', $current['state']['status']);
+        $this->assertSame(45 + $current['state']['first_half_added_time'], $current['minute']);
+        $this->assertNotNull($current['state']['lost_time']['first_half']['announced_minutes']);
         $this->assertCount(1, array_filter($current['state']['events'], fn (array $event): bool => $event['type'] === 'half_time'));
 
         $halfTime = $current;
@@ -221,18 +226,22 @@ class InteractiveMatchTest extends TestCase
 
         $halfTime = $service->advance($this->owner, $this->career, $session, $this->request(1, ['minutes' => 45]));
         $this->assertSame(45, $halfTime['minute']);
+        if (! $halfTime['paused']) {
+            $halfTime = $service->advance($this->owner, $this->career, $session,
+                $this->request($halfTime['revision'], ['minutes' => 20]));
+        }
         $this->assertTrue($halfTime['paused']);
         $this->assertSame('half_time', $halfTime['state']['status']);
         $rngAtHalfTime = $halfTime['state']['rng_counter'];
-        $this->assertSame(45, $session->fresh()->minute);
+        $this->assertSame(45 + $halfTime['state']['first_half_added_time'], $session->fresh()->minute);
 
-        $decision = $service->decide($this->owner, $this->career, $session, $this->request(2, [
+        $decision = $service->decide($this->owner, $this->career, $session, $this->request($halfTime['revision'], [
             'type' => 'tactics', 'payload' => ['formation' => '4-2-4', 'style' => 'total_attack', 'attack_direction' => 'wings', 'marking' => 'heavy'],
         ]));
         $this->assertSame($rngAtHalfTime, $decision['state']['rng_counter']);
         $this->assertSame('4-2-4', $decision['state']['teams'][$session->meta['human_side']]['tactics']['formation']);
-        $service->control($this->owner, $this->career, $session, $this->request(3, ['action' => 'resume']));
-        $finished = $service->finish($this->owner, $this->career, $session, $this->request(4));
+        $resumed = $service->control($this->owner, $this->career, $session, $this->request($decision['revision'], ['action' => 'resume']));
+        $finished = $service->finish($this->owner, $this->career, $session, $this->request($resumed['revision']));
         $this->assertSame('finished', $finished['status']);
         $this->assertGreaterThanOrEqual(91, $finished['minute']);
         $this->assertSame(ReplayHash::of($finished['result']), ReplayHash::of((new FootballMatchEngine)->simulate($session->fresh()->input)));
@@ -270,19 +279,20 @@ class InteractiveMatchTest extends TestCase
         $this->actingAs($this->owner);
 
         $current = $service->advance($this->owner, $this->career, $session,
-            $this->request($current['revision'], ['minutes' => 10]));
-        $this->assertSame(45, $current['minute']);
+            $this->request($current['revision'], ['minutes' => 20]));
+        $this->assertSame('half_time', $current['state']['status']);
         $current = $service->control($this->owner, $this->career, $session,
             $this->request($current['revision'], ['action' => 'resume']));
         $current = $service->advance($this->owner, $this->career, $session,
             $this->request($current['revision'], ['minutes' => 20]));
-        $this->assertSame(65, $current['minute']);
+        $this->assertSame($current['state']['first_half_total'] + 20, $current['minute']);
 
         $at65 = $service->response($session->fresh());
         $requestCount = $session->fresh()->requests()->count();
         $failedBlock = $this->request($current['revision'], ['minutes' => 5]);
         $event = 'eloquent.saving: '.InteractiveMatchSession::class;
-        Event::listen($event, fn (InteractiveMatchSession $saving) => $saving->minute === 70
+        $failedMinute = $current['minute'] + 5;
+        Event::listen($event, fn (InteractiveMatchSession $saving) => $saving->minute === $failedMinute
             ? throw new RuntimeException('Interrupted incremental block') : null);
         try {
             $service->advance($this->owner, $this->career, $session, $failedBlock);
@@ -298,7 +308,7 @@ class InteractiveMatchTest extends TestCase
         $this->assertSame($at65['state']['rng_counter'], $session->fresh()->state['rng_counter']);
 
         $recovered = $service->advance($this->owner, $this->career, $session, $failedBlock);
-        $this->assertSame(70, $recovered['minute']);
+        $this->assertSame($failedMinute, $recovered['minute']);
         $this->assertGreaterThan($at65['state']['rng_counter'], $recovered['state']['rng_counter']);
         $finished = $service->finish($this->owner, $this->career, $session,
             $this->request($recovered['revision']));
@@ -312,6 +322,10 @@ class InteractiveMatchTest extends TestCase
         $current = $service->control($this->owner, $this->career, $session, $this->request(0, ['action' => 'resume']));
         $current = $service->advance($this->owner, $this->career, $session,
             $this->request($current['revision'], ['minutes' => 45]));
+        if (! $current['paused']) {
+            $current = $service->advance($this->owner, $this->career, $session,
+                $this->request($current['revision'], ['minutes' => 20]));
+        }
         $current = $service->control($this->owner, $this->career, $session,
             $this->request($current['revision'], ['action' => 'resume']));
         $current = $service->advance($this->owner, $this->career, $session,
@@ -323,7 +337,8 @@ class InteractiveMatchTest extends TestCase
             'payload' => ['formation' => '4-3-3', 'style' => 'total_attack', 'attack_direction' => 'wings', 'marking' => 'heavy'],
         ]));
 
-        $this->assertSame(60, $current['minute']);
+        $this->assertSame(60, $current['state']['minute']);
+        $this->assertSame($current['state']['first_half_total'] + 15, $current['minute']);
         $this->assertTrue($current['paused']);
         $confirmedEvents = $current['state']['events'];
         $incremental = new Simulation($session->fresh()->input, $current['state']);

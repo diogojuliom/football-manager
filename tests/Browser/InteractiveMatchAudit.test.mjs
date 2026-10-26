@@ -77,6 +77,22 @@ const advanceFromRenderedState = (page, targetMinute = null) => page.evaluate(as
     return payload;
 }, targetMinute);
 
+const advanceUntilAutomaticPause = (page) => page.evaluate(async () => {
+    const root = document.querySelector('[data-live-match]');
+    const token = document.querySelector('meta[name="csrf-token"]').content;
+    let payload = JSON.parse(root.querySelector('[data-live-payload]').textContent);
+    while (payload.status === 'running' && !payload.paused) {
+        const response = await fetch(root.dataset.advanceUrl, {
+            method: 'POST', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': token },
+            body: JSON.stringify({ minutes: 5, request_id: crypto.randomUUID(), revision: payload.revision }),
+        });
+        payload = await response.json();
+        if (!response.ok) throw new Error(JSON.stringify(payload));
+    }
+    return payload;
+});
+
 const assertResponsive = async (page, width, height) => {
     await page.setViewport({ width, height, deviceScaleFactor: 1 });
     await new Promise((resolve) => setTimeout(resolve, 80));
@@ -211,16 +227,18 @@ test('fluxo interativo real permanece sincronizado, responsivo e recuperável', 
         await waitForText(page, '[data-live-phase]', 'Em andamento');
         await page.reload({ waitUntil: 'domcontentloaded' });
 
-        const halfTime = await advanceFromRenderedState(page, 48);
-        assert.equal(halfTime.minute, 48);
+        const halfTime = await advanceUntilAutomaticPause(page);
+        assert.equal(halfTime.minute, 45 + halfTime.state.first_half_added_time);
         assert.equal(halfTime.paused, true);
         assert.equal(halfTime.state.status, 'half_time');
         assert.equal(Math.max(...halfTime.state.events.map((event) => event.minute)), 45);
-        assert.equal(halfTime.state.added_minute, 3);
+        assert.equal(halfTime.state.added_minute, halfTime.state.first_half_added_time);
+        assert.ok(halfTime.state.first_half_added_time >= 3);
         const firstHalfEvents = structuredClone(halfTime.state.events);
         await page.reload({ waitUntil: 'domcontentloaded' });
         assert.equal(await pageText(page, '[data-live-phase]'), 'Intervalo');
-        assert.equal(await pageText(page, '[data-live-clock]'), "45+3'");
+        assert.equal(await pageText(page, '[data-live-clock]'), `45+${halfTime.state.first_half_added_time}'`);
+        assert.match(await pageText(page, '[data-live-events]'), /Acréscimos anunciados/);
         evidence.layouts.tablet = await assertResponsive(page, 768, 1024);
         evidence.layouts.mobile = await assertResponsive(page, 390, 844);
 
@@ -242,8 +260,8 @@ test('fluxo interativo real permanece sincronizado, responsivo e recuperável', 
         await page.click('[data-live-toggle]');
         await waitForText(page, '[data-live-phase]', 'Em andamento');
         await page.reload({ waitUntil: 'domcontentloaded' });
-        const secondHydration = await advanceFromRenderedState(page, 78);
-        assert.equal(secondHydration.minute, 78);
+        const secondHydration = await advanceFromRenderedState(page, halfTime.minute + 30);
+        assert.equal(secondHydration.minute, halfTime.minute + 30);
         assert.equal(secondHydration.state.minute, 75);
         assert.equal(secondHydration.state.status, 'hydration_break');
         await page.reload({ waitUntil: 'domcontentloaded' });
@@ -254,7 +272,9 @@ test('fluxo interativo real permanece sincronizado, responsivo e recuperável', 
         await page.reload({ waitUntil: 'domcontentloaded' });
         const completed = await advanceFromRenderedState(page);
         assert.equal(completed.status, 'finished');
-        assert.ok(completed.minute >= 97 && completed.minute <= 101);
+        assert.equal(completed.minute, 90 + completed.state.added_time);
+        assert.ok(completed.state.first_half_added_time >= 3);
+        assert.ok(completed.state.second_half_added_time >= 3);
         assert.deepEqual(completed.state.events.slice(0, firstHalfEvents.length), firstHalfEvents);
         assert.deepEqual(completed.state.events.map((event) => event.sequence), Array.from({ length: completed.state.events.length }, (_, index) => index + 1));
         const eventTicks = completed.state.events.map((event) => event.tick);
@@ -312,13 +332,14 @@ test('fluxo interativo real permanece sincronizado, responsivo e recuperável', 
         await page.click('[data-live-toggle]');
         await waitForText(page, '[data-live-phase]', 'Em andamento');
         await page.reload({ waitUntil: 'domcontentloaded' });
-        second = await advanceFromRenderedState(page, 48);
+        second = await advanceUntilAutomaticPause(page);
         assert.equal(second.state.status, 'half_time');
+        const secondHalfStartTick = second.minute;
         await page.reload({ waitUntil: 'domcontentloaded' });
         await page.click('[data-live-toggle]');
         await waitForText(page, '[data-live-phase]', 'Em andamento');
         await page.reload({ waitUntil: 'domcontentloaded' });
-        second = await advanceFromRenderedState(page, 63);
+        second = await advanceFromRenderedState(page, secondHalfStartTick + 15);
         assert.equal(second.state.minute, 60);
         await page.reload({ waitUntil: 'domcontentloaded' });
         await page.click('[data-live-toggle]');

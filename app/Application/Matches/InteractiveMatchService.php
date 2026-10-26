@@ -11,7 +11,9 @@ use App\Domain\Career\Models\CompetitionEdition;
 use App\Domain\Football\Engine\FootballMatchEngine;
 use App\Domain\Football\Engine\MatchInput;
 use App\Domain\Football\Engine\ReplayHash;
-use App\Domain\Football\Engine\V5\Simulation;
+use App\Domain\Football\Engine\V5\Simulation as V5Simulation;
+use App\Domain\Football\Engine\V6\AddedTimeRules;
+use App\Domain\Football\Engine\V6\Simulation as V6Simulation;
 use App\Domain\Football\Models\InteractiveMatchRequest;
 use App\Domain\Football\Models\InteractiveMatchSession;
 use App\Models\User;
@@ -54,22 +56,25 @@ class InteractiveMatchService
             }
             $realized = $this->attendance->realize($plan, $career->creation_key.'|'.$match->id);
             $rules = CompetitionEdition::where('career_id', $career->id)->whereKey($match->competition_edition_id)->firstOrFail()->rules;
+            $engineVersion = $rules['match_engine_version'] ?? V5Simulation::VERSION;
             $input = (new MatchInput([
-                'engine_version' => Simulation::VERSION,
-                'seed' => hash('sha256', 'official-v4|'.$career->creation_key.'|'.$match->id),
+                'engine_version' => $engineVersion,
+                'seed' => hash('sha256', ($engineVersion === V6Simulation::VERSION ? 'official-v6|' : 'official-v4|').$career->creation_key.'|'.$match->id),
                 'rules' => [
                     'max_substitutions' => (int) ($rules['max_substitutions'] ?? 3),
                     'max_substitution_windows' => (int) ($rules['max_substitution_windows'] ?? 3),
                     'hydration_breaks_enabled' => (bool) ($rules['hydration_breaks_enabled'] ?? false),
+                    'dynamic_added_time_enabled' => (bool) ($rules['dynamic_added_time_enabled'] ?? false),
+                    'added_time_rules' => $rules['added_time_rules'] ?? AddedTimeRules::DEFAULTS,
                 ],
                 'home' => $teams['home'], 'away' => $teams['away'],
                 'home_context' => $this->attendance->homeContext($plan, $realized), 'decisions' => [],
             ]))->data;
-            $simulation = new Simulation($input);
+            $simulation = $this->simulation($input);
             $state = $simulation->state();
 
             return InteractiveMatchSession::create([
-                'career_id' => $career->id, 'match_id' => $match->id, 'engine_version' => Simulation::VERSION,
+                'career_id' => $career->id, 'match_id' => $match->id, 'engine_version' => $engineVersion,
                 'status' => 'running', 'paused' => true, 'minute' => 0, 'revision' => 0,
                 'input' => $input, 'state' => $state,
                 'meta' => ['human_side' => $match->home_club_id === $humanId ? 'home' : 'away', 'attendance_plan' => $plan, 'attendance_realized' => $realized],
@@ -88,7 +93,7 @@ class InteractiveMatchService
     {
         return $this->mutate($user, $career, $session, 'control', $data, function (InteractiveMatchSession $locked) use ($data): void {
             $action = $data['action'];
-            $simulation = new Simulation($locked->input, $locked->state);
+            $simulation = $this->simulation($locked->input, $locked->state);
             if ($action === 'pause') {
                 $locked->paused = true;
             } elseif ($action === 'resume') {
@@ -112,7 +117,7 @@ class InteractiveMatchService
             if ($locked->paused) {
                 $this->invalid('match', 'Continue a partida antes de solicitar o próximo minuto.');
             }
-            $simulation = new Simulation($locked->input, $locked->state);
+            $simulation = $this->simulation($locked->input, $locked->state);
             $state = $simulation->advance((int) ($data['minutes'] ?? 1));
             $locked->state = $state;
             $locked->minute = $state['tick'];
@@ -132,7 +137,7 @@ class InteractiveMatchService
                 $this->invalid('match', 'Pause a partida antes de alterar a equipe.');
             }
             $side = $locked->meta['human_side'];
-            $simulation = new Simulation($locked->input, $locked->state);
+            $simulation = $this->simulation($locked->input, $locked->state);
             $locked->state = $simulation->applyDecision($side, $data['type'], (array) ($data['payload'] ?? []));
             $locked->minute = $locked->state['tick'];
         });
@@ -141,7 +146,7 @@ class InteractiveMatchService
     public function finish(User $user, Career $career, InteractiveMatchSession $session, array $data): array
     {
         return $this->mutate($user, $career, $session, 'finish', $data, function (InteractiveMatchSession $locked): void {
-            $simulation = new Simulation($locked->input, $locked->state);
+            $simulation = $this->simulation($locked->input, $locked->state);
             while (! in_array($simulation->state()['status'], ['finished', 'abandoned'], true)) {
                 $simulation->advance(120, true);
             }
@@ -160,7 +165,7 @@ class InteractiveMatchService
         ];
     }
 
-    private function complete(InteractiveMatchSession $session, Simulation $simulation): void
+    private function complete(InteractiveMatchSession $session, V5Simulation|V6Simulation $simulation): void
     {
         $state = $simulation->state();
         $humanDecisions = array_values(array_filter($state['decisions'], fn (array $decision): bool => $decision['actor'] === 'human' && in_array($decision['side'], ['home', 'away'], true)));
@@ -177,6 +182,15 @@ class InteractiveMatchService
         $session->result = $result;
         $session->status = 'finished';
         $session->paused = true;
+    }
+
+    private function simulation(array $input, ?array $state = null): V5Simulation|V6Simulation
+    {
+        return match ($input['engine_version']) {
+            V5Simulation::VERSION => new V5Simulation($input, $state),
+            V6Simulation::VERSION => new V6Simulation($input, $state),
+            default => throw new \LogicException('Versão incremental não suportada.'),
+        };
     }
 
     private function mutate(User $user, Career $career, InteractiveMatchSession $session, string $kind, array $data, callable $callback): array

@@ -12,7 +12,7 @@ final class MatchInput
     public function __construct(array $data)
     {
         $version = $data['engine_version'] ?? FootballMatchEngine::VERSION;
-        if (! in_array($version, [V1\Simulation::VERSION, V2\Simulation::VERSION, V3\Simulation::VERSION, V4\Simulation::VERSION, V5\Simulation::VERSION], true)) {
+        if (! in_array($version, [V1\Simulation::VERSION, V2\Simulation::VERSION, V3\Simulation::VERSION, V4\Simulation::VERSION, V5\Simulation::VERSION, V6\Simulation::VERSION], true)) {
             throw new InvalidArgumentException('Versão do motor não suportada.');
         }
         if (! is_string($data['seed'] ?? null) || ! preg_match('/^[a-zA-Z0-9_-]{1,64}$/D', $data['seed'])) {
@@ -28,18 +28,26 @@ final class MatchInput
         }
         $ids = [];
         $normalized = ['engine_version' => $version, 'seed' => $data['seed'], 'rules' => ['max_substitutions' => $limit]];
-        if (in_array($version, [V4\Simulation::VERSION, V5\Simulation::VERSION], true)) {
+        if (in_array($version, [V4\Simulation::VERSION, V5\Simulation::VERSION, V6\Simulation::VERSION], true)) {
             $windows = $rules['max_substitution_windows'] ?? 3;
             if (! is_int($windows) || $windows < 0 || $windows > 5) {
                 throw new InvalidArgumentException('Limite de janelas de substituição inválido.');
             }
             $normalized['rules']['max_substitution_windows'] = $windows;
-            if ($version === V5\Simulation::VERSION) {
+            if (in_array($version, [V5\Simulation::VERSION, V6\Simulation::VERSION], true)) {
                 $hydration = $rules['hydration_breaks_enabled'] ?? false;
                 if (! is_bool($hydration)) {
                     throw new InvalidArgumentException('Regra de parada para hidratação inválida.');
                 }
                 $normalized['rules']['hydration_breaks_enabled'] = $hydration;
+            }
+            if ($version === V6\Simulation::VERSION) {
+                $dynamic = $rules['dynamic_added_time_enabled'] ?? true;
+                if (! is_bool($dynamic)) {
+                    throw new InvalidArgumentException('Regra de acréscimos dinâmicos inválida.');
+                }
+                $normalized['rules']['dynamic_added_time_enabled'] = $dynamic;
+                $normalized['rules']['added_time_rules'] = V6\AddedTimeRules::normalize($rules['added_time_rules'] ?? V6\AddedTimeRules::DEFAULTS);
             }
         }
         foreach (['home', 'away'] as $side) {
@@ -90,7 +98,7 @@ final class MatchInput
                     $team[$unit][$slot] = array_intersect_key($player, array_flip(['id', 'name', 'primary_position', 'secondary_positions', ...array_keys(Tactics::ATTRIBUTES), 'fitness', 'morale', 'available']));
                 }
             }
-            if (in_array($version, [V2\Simulation::VERSION, V3\Simulation::VERSION, V4\Simulation::VERSION, V5\Simulation::VERSION], true)) {
+            if (in_array($version, [V2\Simulation::VERSION, V3\Simulation::VERSION, V4\Simulation::VERSION, V5\Simulation::VERSION, V6\Simulation::VERSION], true)) {
                 $controller = $team['controller'] ?? 'human';
                 if (! in_array($controller, ['human', 'ai'], true)
                     || ($controller === 'ai' && ($team['ai_policy_version'] ?? \App\Domain\AI\V1\MatchDecisions::VERSION) !== \App\Domain\AI\V1\MatchDecisions::VERSION)) {
@@ -103,7 +111,7 @@ final class MatchInput
             }
             $normalized[$side] = $team;
         }
-        if (in_array($version, [V4\Simulation::VERSION, V5\Simulation::VERSION], true)) {
+        if (in_array($version, [V4\Simulation::VERSION, V5\Simulation::VERSION, V6\Simulation::VERSION], true)) {
             $decisions = $data['decisions'] ?? [];
             if (! is_array($decisions) || ! array_is_list($decisions) || count($decisions) > 100) {
                 throw new InvalidArgumentException('Decisões da partida inválidas.');

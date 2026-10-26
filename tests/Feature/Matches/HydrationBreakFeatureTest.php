@@ -11,6 +11,8 @@ use App\Application\Squads\SquadSheet;
 use App\Domain\Career\Models\CompetitionEdition;
 use App\Domain\Football\Engine\FootballMatchEngine;
 use App\Domain\Football\Engine\ReplayHash;
+use App\Domain\Football\Engine\V6\AddedTimeRules;
+use App\Domain\Football\Engine\V6\Simulation;
 use App\Domain\GameDatabase\Models\ClubTemplate;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -69,12 +71,13 @@ class HydrationBreakFeatureTest extends TestCase
         $this->assertSame('completed', $current['state']['hydration_breaks']['first_half']['status']);
         $current = $service->advance($owner, $career, $session, $this->request($current['revision'], ['minutes' => 60]));
         $this->assertSame('half_time', $current['state']['status']);
-        $this->assertSame(48, $current['minute']);
-        $this->assertSame(3, $current['state']['added_minute']);
+        $this->assertSame(45 + $current['state']['first_half_added_time'], $current['minute']);
+        $this->assertSame($current['state']['first_half_added_time'], $current['state']['added_minute']);
+        $this->assertGreaterThanOrEqual(3, $current['state']['first_half_added_time']);
         $current = $service->control($owner, $career, $session, $this->request($current['revision'], ['action' => 'resume']));
         $current = $service->advance($owner, $career, $session, $this->request($current['revision'], ['minutes' => 60]));
         $this->assertSame('hydration_break', $current['state']['status']);
-        $this->assertSame(78, $current['minute']);
+        $this->assertSame($current['state']['first_half_total'] + 30, $current['minute']);
         $this->assertSame(75, $current['state']['minute']);
 
         $finished = $service->finish($owner, $career, $session, $this->request($current['revision']));
@@ -92,13 +95,19 @@ class HydrationBreakFeatureTest extends TestCase
         [$firstOwner, $firstCareer] = $this->readyCareer('Regra habilitada');
         $firstEdition = CompetitionEdition::where('career_id', $firstCareer->id)->sole();
         $this->assertTrue($firstEdition->rules['hydration_breaks_enabled']);
+        $this->assertSame(Simulation::VERSION, $firstEdition->rules['match_engine_version']);
+        $this->assertTrue($firstEdition->rules['dynamic_added_time_enabled']);
+        $this->assertSame(AddedTimeRules::DEFAULTS, $firstEdition->rules['added_time_rules']);
 
         $ruleset = ClubTemplate::firstOrFail()->competition->ruleset;
-        $ruleset->update(['hydration_breaks_enabled' => false]);
+        $changedAddedTime = array_replace(AddedTimeRules::DEFAULTS, ['goal_celebration_seconds' => [50, 50]]);
+        $ruleset->update(['hydration_breaks_enabled' => false, 'added_time_rules' => $changedAddedTime]);
         [$secondOwner, $secondCareer] = $this->readyCareer('Regra desabilitada');
         $secondEdition = CompetitionEdition::where('career_id', $secondCareer->id)->sole();
         $this->assertFalse($secondEdition->rules['hydration_breaks_enabled']);
+        $this->assertSame($changedAddedTime, $secondEdition->rules['added_time_rules']);
         $this->assertTrue($firstEdition->fresh()->rules['hydration_breaks_enabled']);
+        $this->assertSame(AddedTimeRules::DEFAULTS, $firstEdition->fresh()->rules['added_time_rules']);
 
         $service = app(InteractiveMatchService::class);
         $match = app(CareerCalendar::class)->nextMatch($secondCareer);
@@ -106,7 +115,10 @@ class HydrationBreakFeatureTest extends TestCase
         $finished = $service->finish($secondOwner, $secondCareer, $session, $this->request(0));
         $this->assertFalse($session->fresh()->input['rules']['hydration_breaks_enabled']);
         $this->assertSame([], $this->events($finished['result'], 'hydration_break_start'));
-        $this->assertSame(0, $finished['result']['first_half_added_time']);
+        $this->assertSame(0, array_sum(array_column(array_filter(
+            $finished['result']['lost_time']['first_half']['contributions'],
+            fn (array $item): bool => $item['type'] === 'hydration_break_start',
+        ), 'seconds')));
     }
 
     private function readyCareer(string $name): array

@@ -13,6 +13,9 @@ use App\Domain\Career\Models\CareerOperation;
 use App\Domain\Football\Engine\FootballMatchEngine;
 use App\Domain\Football\Engine\MatchInput;
 use App\Domain\Football\Engine\ReplayHash;
+use App\Domain\Football\Engine\V5\Simulation as V5Simulation;
+use App\Domain\Football\Engine\V6\AddedTimeRules;
+use App\Domain\Football\Engine\V6\Simulation as V6Simulation;
 use App\Domain\Football\Models\InteractiveMatchSession;
 use App\Domain\Football\Models\OfficialMatchResult;
 use LogicException;
@@ -55,6 +58,7 @@ class PlayOfficialMatch
             $plan = $interactive->meta['attendance_plan'];
             $realized = $interactive->meta['attendance_realized'];
         } else {
+            $engineVersion = $competitionRules['match_engine_version'] ?? V5Simulation::VERSION;
             $teams = [];
             foreach (['home' => [$home, $away], 'away' => [$away, $home]] as $side => [$club, $opponent]) {
                 if ($club->id === $humanId) {
@@ -74,12 +78,14 @@ class PlayOfficialMatch
             }
             $realized = $this->attendance->realize($plan, $career->creation_key.'|'.$match->id);
             $input = (new MatchInput([
-                'engine_version' => $operation->input['engine_version'],
-                'seed' => hash('sha256', 'official-v1|'.$career->creation_key.'|'.$match->id),
+                'engine_version' => $engineVersion,
+                'seed' => hash('sha256', ($engineVersion === V6Simulation::VERSION ? 'official-v6|' : 'official-v1|').$career->creation_key.'|'.$match->id),
                 'rules' => [
                     'max_substitutions' => (int) ($competitionRules['max_substitutions'] ?? 3),
                     'max_substitution_windows' => (int) ($competitionRules['max_substitution_windows'] ?? 3),
                     'hydration_breaks_enabled' => (bool) ($competitionRules['hydration_breaks_enabled'] ?? false),
+                    'dynamic_added_time_enabled' => (bool) ($competitionRules['dynamic_added_time_enabled'] ?? false),
+                    'added_time_rules' => $competitionRules['added_time_rules'] ?? AddedTimeRules::DEFAULTS,
                 ],
                 'home' => $teams['home'], 'away' => $teams['away'], 'home_context' => $this->attendance->homeContext($plan, $realized),
             ]))->data;
