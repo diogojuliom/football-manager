@@ -41,6 +41,24 @@ test('as sete velocidades têm a duração nominal correta e 1× dura cinco minu
     assert.throws(() => liveMinuteDuration(3), RangeError);
 });
 
+test('cada velocidade apresenta exatamente os 90 minutos sem perdas ou duplicações', async () => {
+    for (const speed of LIVE_MATCH_SPEEDS) {
+        const timers = new FakeTimers();
+        const presented = [];
+        const clock = new LiveMatchClock(async () => {
+            presented.push(presented.length + 1);
+            return presented.length < 90;
+        }, timers);
+
+        clock.start(speed);
+        while (await timers.next()) {}
+
+        assert.deepEqual(presented, Array.from({ length: 90 }, (_, index) => index + 1));
+        assert.ok(Math.abs(timers.time - LIVE_MATCH_DURATION_MS / speed) < 0.001);
+        assert.equal(clock.running, false);
+    }
+});
+
 test('latência das requisições não é acumulada no ritmo dos 90 minutos', async () => {
     const timers = new FakeTimers();
     let minute = 0;

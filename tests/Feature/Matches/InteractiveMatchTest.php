@@ -373,6 +373,28 @@ class InteractiveMatchTest extends TestCase
         $service->find($other, $this->career, $this->match());
     }
 
+    public function test_official_result_renders_a_saved_position_change(): void
+    {
+        $service = app(InteractiveMatchService::class);
+        $match = $this->match();
+        $session = $service->start($this->owner, $this->career, $match);
+        $active = array_values($session->state['teams'][$session->meta['human_side']]['active']);
+        [$active[5], $active[8]] = [$active[8], $active[5]];
+        $service->decide($this->owner, $this->career, $session, $this->request(0, [
+            'type' => 'positions', 'payload' => ['active' => $active],
+        ]));
+        $service->finish($this->owner, $this->career, $session, $this->request(1));
+        app(CareerProgressionService::class)->execute($this->owner, $this->career, [
+            'action' => CareerProgressionService::PLAY_MATCH, 'request_id' => (string) Str::uuid(),
+            'revision' => $this->career->fresh()->progression_revision, 'match_id' => $match->id,
+        ]);
+        $official = OfficialMatchResult::where('match_id', $match->id)->sole();
+
+        $this->get(route('careers.results.show', [$this->career, $official]))
+            ->assertOk()
+            ->assertSee('Troca de posições');
+    }
+
     public function test_live_routes_render_all_controls_and_do_not_advance_without_an_explicit_request(): void
     {
         $match = $this->match();

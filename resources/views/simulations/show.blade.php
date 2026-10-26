@@ -8,7 +8,7 @@
         foreach ($result[$side]['players'] as $player) { $names[$player['player_id']] = $player['name']; }
     }
     $reasons = ['chasing_goal' => 'Buscar empate ou virada', 'protecting_lead' => 'Proteger a vantagem', 'numerical_disadvantage' => 'Reorganizar após expulsão', 'numerical_advantage' => 'Explorar vantagem numérica', 'conserve_energy' => 'Poupar energia', 'fatigue' => 'Desgaste físico', 'booking' => 'Jogador amarelado', 'refresh' => 'Renovar a equipe'];
-    $labels = ['kickoff' => 'Início da partida', 'possession' => 'Posse de bola', 'build_up' => 'Construção de jogada', 'opportunity' => 'Oportunidade', 'shot' => 'Finalização', 'save' => 'Defesa do goleiro', 'goal' => 'Gol', 'assist' => 'Assistência', 'foul' => 'Falta', 'yellow_card' => 'Cartão amarelo', 'red_card' => 'Expulsão', 'substitution' => 'Substituição', 'fatigue' => 'Desgaste físico', 'half_time' => 'Intervalo', 'full_time' => 'Fim da partida', 'abandoned' => 'Partida interrompida', 'tactical_change' => 'Ajuste tático'];
+    $labels = ['kickoff' => 'Início da partida', 'possession' => 'Posse de bola', 'build_up' => 'Construção de jogada', 'opportunity' => 'Oportunidade', 'shot' => 'Finalização', 'save' => 'Defesa do goleiro', 'goal' => 'Gol', 'assist' => 'Assistência', 'foul' => 'Falta', 'yellow_card' => 'Cartão amarelo', 'red_card' => 'Expulsão', 'substitution' => 'Substituição', 'positions_change' => 'Troca de posições', 'tactical_change' => 'Ajuste tático', 'fatigue' => 'Desgaste físico', 'injury' => 'Lesão', 'half_time' => 'Intervalo', 'full_time' => 'Fim da partida', 'abandoned' => 'Partida interrompida'];
 @endphp
 <header class="page-header"><div class="page-header-copy"><a class="breadcrumb" href="{{ $official ? route('careers.show', $career) : route('careers.friendlies.create', $career) }}">← {{ $official ? 'Voltar à carreira' : 'Voltar aos amistosos' }}</a><p class="eyebrow">{{ $official ? 'Partida oficial' : 'Amistoso' }} · Encerrada</p><h1>Relatório da partida</h1></div></header>
 <section class="score-hero"><span class="badge">{{ $result['minutes'] }} minutos</span><div class="match-up"><strong>{{ $result['home']['name'] }}</strong><span class="score">{{ $result['home']['stats']['goals'] }} <em>×</em> {{ $result['away']['stats']['goals'] }}</span><strong>{{ $result['away']['name'] }}</strong></div><p>Motor {{ $simulation->engine_version }} · Seed: {{ $simulation->seed }}</p></section>
@@ -80,7 +80,7 @@
 <details><summary>Todas as jogadas</summary>
 <div class="table-scroll"><table><thead><tr><th>Ordem</th><th>Minuto</th><th>Evento</th><th>Equipe</th><th>Jogador</th></tr></thead><tbody>
 @foreach($result['events'] as $event)
-<tr><td>{{ $event['sequence'] }}</td><td>{{ $event['minute'] }}</td><td>{{ $labels[$event['type']] }}</td><td>{{ $event['side'] ? $result[$event['side']]['name'] : '—' }}</td><td>{{ $names[$event['player_id']] ?? '—' }}</td></tr>
+<tr><td>{{ $event['sequence'] }}</td><td>{{ $event['minute'] }}</td><td>{{ $labels[$event['type']] ?? \Illuminate\Support\Str::headline($event['type']) }}</td><td>{{ $event['side'] ? $result[$event['side']]['name'] : '—' }}</td><td>{{ $names[$event['player_id']] ?? '—' }}</td></tr>
 @endforeach
 </tbody></table></div>
 </details>

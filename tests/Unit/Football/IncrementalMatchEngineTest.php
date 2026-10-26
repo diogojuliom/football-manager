@@ -169,6 +169,41 @@ class IncrementalMatchEngineTest extends TestCase
         ]);
     }
 
+    public function test_half_time_accepts_substitution_and_tactics_without_recalculating_the_first_half(): void
+    {
+        $input = (new \App\Domain\Football\Engine\MatchInput($this->input('half-time-adjustments')))->data;
+        $simulation = new Simulation($input);
+        $simulation->advance(45);
+        $halfTime = $simulation->state();
+        $out = $halfTime['teams']['home']['active'][1];
+        $in = $halfTime['teams']['home']['bench'][1];
+
+        $simulation->applyDecision('home', 'substitution', ['out' => $out, 'in' => $in]);
+        $simulation->applyDecision('home', 'tactics', [
+            'formation' => '4-3-3', 'style' => 'total_attack',
+            'attack_direction' => 'wings', 'marking' => 'very_heavy',
+        ]);
+        $adjusted = $simulation->state();
+
+        $this->assertSame('half_time', $adjusted['status']);
+        $this->assertSame(45, $adjusted['minute']);
+        $this->assertSame($halfTime['rng_counter'], $adjusted['rng_counter']);
+        $this->assertSame($halfTime['events'], array_slice($adjusted['events'], 0, count($halfTime['events'])));
+        $this->assertSame($in, $adjusted['teams']['home']['active'][1]);
+        $this->assertNotContains($out, $adjusted['teams']['home']['active']);
+        $this->assertSame(1, $adjusted['teams']['home']['stats']['substitutions']);
+        $this->assertSame(0, $adjusted['teams']['home']['substitution_windows']);
+        $this->assertSame('4-3-3', $adjusted['teams']['home']['tactics']['formation']);
+
+        $simulation->resumeHalfTime();
+        $simulation->advance(1);
+        $secondHalf = $simulation->state();
+        $this->assertSame(46, $secondHalf['minute']);
+        $this->assertSame($in, $secondHalf['teams']['home']['active'][1]);
+        $this->assertSame('4-3-3', $secondHalf['teams']['home']['tactics']['formation']);
+        $this->assertSame($adjusted['events'], array_slice($secondHalf['events'], 0, count($adjusted['events'])));
+    }
+
     public function test_ai_uses_the_same_tactical_model_to_chase_a_result(): void
     {
         $input = (new \App\Domain\Football\Engine\MatchInput($this->input('ai-live')))->data;
