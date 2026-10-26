@@ -101,6 +101,42 @@ class Tactics
         'build_up' => ['short' => 'Passes curtos', 'balanced' => 'Equilibrada', 'direct' => 'Jogo direto'],
     ];
 
+    /** Player-facing explanations kept beside the options they describe. */
+    public const OPTION_HELP = [
+        'mentality' => [
+            'summary' => 'Define quanto a equipe prioriza atacar ou se proteger.',
+            'options' => [
+                'defensive' => 'Aumenta a força defensiva em 14% e reduz a ofensiva em 12%.',
+                'balanced' => 'Mantém ataque e defesa nos valores-base da formação.',
+                'attacking' => 'Aumenta a força ofensiva em 14% e reduz a defensiva em 12%.',
+            ],
+        ],
+        'pressure' => [
+            'summary' => 'Controla a intensidade das disputas, o risco de faltas e o desgaste físico.',
+            'options' => [
+                'low' => 'Preserva mais a condição física e reduz a probabilidade de faltas.',
+                'normal' => 'Aplica intensidade e desgaste intermediários.',
+                'high' => 'Eleva a intensidade, mas aumenta a probabilidade de faltas e acelera o desgaste.',
+            ],
+        ],
+        'tempo' => [
+            'summary' => 'Altera a frequência com que a equipe transforma jogadas em oportunidades.',
+            'options' => [
+                'slow' => 'Reduz a criação de oportunidades em 10% e preserva mais a condição física.',
+                'normal' => 'Mantém criação e desgaste nos valores-base.',
+                'fast' => 'Aumenta a criação de oportunidades em 12% e acelera o desgaste físico.',
+            ],
+        ],
+        'build_up' => [
+            'summary' => 'Define como a equipe progride com a bola e equilibra controle e força ofensiva.',
+            'options' => [
+                'short' => 'Aumenta o controle em 8%, com redução de 2% na força ofensiva.',
+                'balanced' => 'Mantém controle e força ofensiva nos valores-base.',
+                'direct' => 'Aumenta a força ofensiva em 6%, com redução de 7% no controle.',
+            ],
+        ],
+    ];
+
     public const LIVE_OPTIONS = [
         'style' => ['balanced' => 'Equilibrado', 'total_attack' => 'Ataque total', 'counter' => 'Contra-ataque / retranca'],
         'attack_direction' => ['balanced' => 'Equilibrada', 'center' => 'Pelo meio', 'wings' => 'Pelas laterais'],

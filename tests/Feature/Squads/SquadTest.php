@@ -77,12 +77,23 @@ class SquadTest extends TestCase
             ->assertSee('data-tactical-board', false)
             ->assertSee('data-tactical-model', false)
             ->assertSee('data-squad-players', false)
+            ->assertSee('data-player-skills-tooltip', false)
+            ->assertSee('"attributes"', false)
             ->assertSee('data-interaction-mode="fixed"', false)
             ->assertSee('data-draggable="false"', false)
             ->assertSee('data-unit="starter"', false)
             ->assertSee('data-unit="reserve"', false)
             ->assertSee('data-unit="outside"', false)
             ->assertSee('data-reserve-select="0"', false)
+            ->assertSee('data-lineup-selects hidden', false)
+            ->assertSee('data-tactical-info="mentality"', false)
+            ->assertSee('data-tactical-info="pressure"', false)
+            ->assertSee('data-tactical-info="tempo"', false)
+            ->assertSee('data-tactical-info="build_up"', false)
+            ->assertSee('Aumenta a força ofensiva em 14%')
+            ->assertSee('aumenta a probabilidade de faltas')
+            ->assertSee('Aumenta a criação de oportunidades em 12%')
+            ->assertSee('Aumenta o controle em 8%')
             ->assertSee('<svg class="tactical-pitch-svg"', false)
             ->assertSee('GOL')
             ->assertSee('ZAG')
@@ -98,6 +109,10 @@ class SquadTest extends TestCase
         }
         foreach (Tactics::ATTRIBUTES as $label) {
             $response->assertSee($label);
+        }
+        $this->assertSame(array_keys(Tactics::OPTIONS), array_keys(Tactics::OPTION_HELP));
+        foreach (Tactics::OPTIONS as $field => $options) {
+            $this->assertSame(array_keys($options), array_keys(Tactics::OPTION_HELP[$field]['options']));
         }
         $this->assertDatabaseCount('career_lineups', 0);
         $this->assertDatabaseCount('career_lineup_players', 0);

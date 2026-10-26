@@ -80,9 +80,8 @@ body.game-page {
 .career-progress-heading p { margin: .2rem 0 0; color: #94a3b8; font-size: .62rem; }
 .career-state-dot { width: .55rem; height: .55rem; border-radius: 50%; background: #34d399; box-shadow: 0 0 0 .25rem rgba(52, 211, 153, .12); }
 .career-progress-message { margin: 0 0 .8rem; color: #cbd5e1; font-size: .7rem; line-height: 1.6; }
-.career-dashboard-view .career-main-action { display: flex; width: 100%; min-height: 3.2rem; border-color: #059669; border-radius: .75rem; background: linear-gradient(90deg, #059669, #10b981); color: #fff !important; box-shadow: 0 12px 25px rgba(6, 78, 59, .45); font-size: .78rem; font-weight: 900; }
+.career-dashboard-view .career-main-action { display: flex; align-items: center; justify-content: center; gap: .5rem; width: 100%; min-height: 3.2rem; padding: .68rem 1rem; margin: 0; border: 1px solid #059669; border-radius: .75rem; background: linear-gradient(90deg, #059669, #10b981); color: #fff !important; box-shadow: 0 12px 25px rgba(6, 78, 59, .45); font-size: .78rem; font-weight: 900; line-height: 1.2; text-decoration: none !important; transition: .16s; }
 .career-dashboard-view .career-main-action:hover { border-color: #34d399; background: linear-gradient(90deg, #10b981, #34d399); color: #fff; transform: translateY(-1px); }
-.career-dashboard-view .career-main-action.amber { border-color: #d97706; background: linear-gradient(90deg, #d97706, #f59e0b); color: #090b11 !important; }
 .career-dashboard-view .career-main-action.blue { border-color: #2563eb; background: linear-gradient(90deg, #2563eb, #3b82f6); }
 .career-progress-actions > div { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .6rem; }
 .career-progress-actions > div button { min-height: 2.35rem; padding: .5rem; border-color: #334155; background: #1e293b; color: #cbd5e1; font-size: .65rem; }
@@ -238,8 +237,37 @@ body.game-page {
 .squad-player-copy > i { display: block; width: 100%; height: .2rem; margin-top: .35rem; overflow: hidden; border-radius: 999px; background: #334155; }
 .squad-player-copy > i span { display: block; width: var(--fitness); height: 100%; border-radius: inherit; background: linear-gradient(90deg, #059669, #34d399); }
 .squad-player-card > b { color: #94a3b8; font-size: .58rem; text-align: right; }
+.squad-skills-tooltip { position: fixed; z-index: 100; width: min(72rem, calc(100vw - 1.5rem)); overflow: hidden; border: 1px solid #1f4d3b; border-radius: .7rem; background: rgba(3, 17, 12, .98); box-shadow: 0 22px 55px rgba(0, 0, 0, .58); color: #f8fafc; pointer-events: none; }
+.squad-skills-tooltip[hidden] { display: none !important; }
+.squad-skills-tooltip > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .65rem .8rem; border-bottom: 1px solid #1f3d31; background: #0d241a; }
+.squad-skills-tooltip > header strong, .squad-skills-tooltip > header span { display: block; }
+.squad-skills-tooltip > header strong { font-size: .7rem; }
+.squad-skills-tooltip > header span { margin-top: .15rem; color: #94a3b8; font-size: .54rem; }
+.squad-skills-tooltip > header small { color: #6ee7b7; font-size: .56rem; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+.squad-skills-tooltip dl { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); margin: 0; }
+.squad-skills-tooltip dl > div { min-width: 0; border-right: 1px solid #15372a; }
+.squad-skills-tooltip dl > div:last-child { border-right: 0; }
+.squad-skills-tooltip dt, .squad-skills-tooltip dd { margin: 0; padding: .65rem .7rem; }
+.squad-skills-tooltip dt { overflow: hidden; border-bottom: 1px solid #15372a; background: #10271d; color: #94a99e; font-size: .52rem; font-weight: 900; text-overflow: ellipsis; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
+.squad-skills-tooltip dd { color: #f8fafc; font-size: .8rem; font-weight: 800; }
 .empty-squad-list { margin: .25rem; padding: 1rem; color: #64748b; font-size: .62rem; text-align: center; }
 .tactical-board-status { min-height: 1.15rem; margin: .8rem auto 0; color: #94a3b8; font-size: .72rem; text-align: center; }
+.tactical-settings { position: relative; }
+.tactical-setting { position: relative; min-width: 0; }
+.tactical-setting-label { position: relative; display: flex; align-items: center; gap: .4rem; margin: 1rem 0 .42rem; }
+.game-page .tactical-setting-label > label { margin: 0; }
+.game-page button.tactical-info { display: inline-grid; flex: 0 0 auto; place-items: center; width: 1.05rem; height: 1.05rem; padding: 0; margin: 0; border: 1px solid #4b7661; border-radius: 50%; background: #0b2218; color: #86efac; font-family: Georgia, serif; font-size: .68rem; font-weight: 800; line-height: 1; cursor: help; }
+.game-page button.tactical-info:hover, .game-page button.tactical-info:focus-visible { border-color: #86efac; background: #123524; color: #dcfce7; outline: 2px solid rgba(134, 239, 172, .2); outline-offset: 2px; }
+.tactical-help { position: absolute; z-index: 20; top: calc(100% + .5rem); left: 0; width: min(27rem, calc(100vw - 3rem)); padding: .8rem; border: 1px solid #2d5b46; border-radius: .7rem; background: rgba(3, 17, 12, .99); box-shadow: 0 18px 45px rgba(0, 0, 0, .55); color: #d8e7de; opacity: 0; pointer-events: none; transform: translateY(-.25rem); transition: opacity .14s ease, transform .14s ease, visibility .14s; visibility: hidden; }
+.tactical-help::before { content: ''; position: absolute; bottom: 100%; left: 6.6rem; border: .35rem solid transparent; border-bottom-color: #2d5b46; }
+.tactical-info:hover + .tactical-help, .tactical-info:focus + .tactical-help { opacity: 1; transform: translateY(0); visibility: visible; }
+.tactical-help > strong { display: block; color: #86efac; font-size: .72rem; }
+.tactical-help > p { margin: .25rem 0 .7rem; color: #a8bcb0; font-size: .62rem; line-height: 1.45; }
+.tactical-help dl { display: grid; gap: .42rem; margin: 0; }
+.tactical-help dl > div { display: grid; grid-template-columns: 5.8rem minmax(0, 1fr); gap: .55rem; align-items: baseline; padding-top: .42rem; border-top: 1px solid #17392b; }
+.tactical-help dt, .tactical-help dd { margin: 0; font-size: .59rem; line-height: 1.45; }
+.tactical-help dt { color: #f0fdf4; font-weight: 800; }
+.tactical-help dd { color: #a8bcb0; }
 
 @media (max-width: 1120px) {
     .interactive-squad-layout { grid-template-columns: 1fr; }
@@ -259,6 +287,16 @@ body.game-page {
     .pitch-player-condition i { width: .72rem; }
     .squad-selection-panel { grid-template-columns: 1fr; }
     .outside-list { max-height: 21rem; }
+    .squad-skills-tooltip dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .squad-skills-tooltip dl > div { border-bottom: 1px solid #15372a; }
+    .tactical-help { width: min(22rem, calc(100vw - 3.4rem)); }
+    .tactical-help dl > div { grid-template-columns: 1fr; gap: .08rem; }
+}
+
+@media (min-width: 621px) and (max-width: 960px) {
+    .squad-skills-tooltip dl { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .squad-skills-tooltip dl > div:nth-child(6) { border-right: 0; }
+    .squad-skills-tooltip dl > div:nth-child(-n + 6) { border-bottom: 1px solid #15372a; }
 }
 
 /* Incremental match center */

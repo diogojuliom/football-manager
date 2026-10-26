@@ -48,10 +48,45 @@ const createReadyMatch = async (page, name) => {
     await navigateByClick(page, '.career-submit');
 
     await navigateByClick(page, 'a[href$="/squad"]');
+    const firstPlayer = '[data-pitch-player]:not([disabled])';
+    await page.hover(firstPlayer);
+    await page.waitForFunction(() => document.querySelector('[data-player-skills-tooltip]')?.hidden === false);
+    const skills = await page.$$eval('[data-player-skills] > div', (items) => items.map((item) => ({
+        label: item.querySelector('dt').textContent.trim(),
+        value: Number(item.querySelector('dd').textContent.trim()),
+    })));
+    assert.deepEqual(skills.map((skill) => skill.label), ['Defesa', 'Desarme', 'Passe', 'Criatividade', 'Finalização', 'Velocidade', 'Resistência', 'Disciplina', 'Controle emocional', 'Bolas paradas', 'Habilidade de goleiro']);
+    assert.equal(skills.every((skill) => Number.isInteger(skill.value) && skill.value >= 0 && skill.value <= 100), true);
+    await page.mouse.move(0, 0);
+    const tacticalHelp = {
+        mentality: ['Defensiva', 'Equilibrada', 'Ofensiva', '14%', '12%'],
+        pressure: ['Baixa', 'Normal', 'Alta', 'faltas', 'desgaste'],
+        tempo: ['Lento', 'Normal', 'Rápido', '10%', '12%'],
+        build_up: ['Passes curtos', 'Equilibrada', 'Jogo direto', '8%', '6%', '7%'],
+    };
+    for (const [field, expected] of Object.entries(tacticalHelp)) {
+        await page.hover(`[data-tactical-info="${field}"]`);
+        await page.waitForFunction((name) => getComputedStyle(document.querySelector(`[data-tactical-help="${name}"]`)).visibility === 'visible', {}, field);
+        const content = await pageText(page, `[data-tactical-help="${field}"]`);
+        expected.forEach((text) => assert.match(content, new RegExp(text)));
+    }
+    await page.focus('[data-tactical-info="mentality"]');
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('[data-tactical-help="mentality"]')).visibility === 'visible');
+    await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1 });
+    await page.hover('[data-tactical-info="build_up"]');
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('[data-tactical-help="build_up"]')).visibility === 'visible');
+    const mobileHelpBounds = await page.$eval('[data-tactical-help="build_up"]', (element) => {
+        const bounds = element.getBoundingClientRect();
+        return { left: bounds.left, right: bounds.right, width: bounds.width, viewport: innerWidth };
+    });
+    assert.ok(mobileHelpBounds.left >= 0);
+    assert.ok(mobileHelpBounds.right <= mobileHelpBounds.viewport);
+    assert.ok(mobileHelpBounds.width > 250);
+    await page.setViewport({ width: 1440, height: 1000, deviceScaleFactor: 1 });
     await navigateByClick(page, '.squad-form button[type=submit]');
     await navigateByClick(page, 'a.breadcrumb[href*="/careers/"]');
     await navigateByClick(page, 'button[value=ADVANCE_TO_NEXT_MATCH]');
-    await navigateByClick(page, '.career-main-action.amber');
+    await navigateByClick(page, 'a.career-main-action[href*="/pre-match"]');
     await navigateByClick(page, 'form[action*="/live/start"] button');
     await page.waitForSelector('[data-live-match]');
     assert.equal(await pageText(page, '[data-live-clock]'), "0'");

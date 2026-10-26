@@ -50,7 +50,7 @@
                     <form data-progression method="post" action="{{ route('careers.progression.store', $career) }}">@csrf<input type="hidden" name="request_id" value="{{ $requestId }}"><input type="hidden" name="revision" value="{{ $career->progression_revision }}"><input type="hidden" name="event_id" value="{{ $decision->id }}"><button class="career-main-action" name="action" value="ACKNOWLEDGE_EVENT">Confirmar acontecimento</button></form>
                 @elseif($career->state === \App\Domain\Career\CareerState::PreMatch && $nextMatch)
                     <div class="career-ready"><span aria-hidden="true">⚽</span><p><strong>Chegou o dia do jogo!</strong><br>O elenco aguarda no vestiário.</p></div>
-                    <a class="career-main-action amber" href="{{ route('careers.matches.pre-match', [$career, $nextMatch]) }}">Jogar partida</a>
+                    <a class="career-main-action" href="{{ route('careers.matches.pre-match', [$career, $nextMatch]) }}">Jogar partida</a>
                 @elseif($career->state === \App\Domain\Career\CareerState::AwaitingSeason)
                     <p class="career-progress-message"><strong>Temporada encerrada</strong><br>Campeão: {{ $season->summary[0]['standings'][0]['name'] }}</p>
                     @if(!$pendingOperation)<form data-progression method="post" action="{{ route('careers.progression.store', $career) }}">@csrf<input type="hidden" name="request_id" value="{{ $requestId }}"><input type="hidden" name="revision" value="{{ $career->progression_revision }}"><button class="career-main-action blue" name="action" value="START_NEXT_SEASON">Iniciar temporada {{ $career->current_season_number + 1 }}</button></form>@endif

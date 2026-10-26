@@ -27,6 +27,9 @@ export class TacticalBoard {
         this.reserveSelects = [...document.querySelectorAll('[data-reserve-select]')];
         this.currentFormation = board.dataset.currentFormation;
         this.selectedCard = null;
+        this.pointerCard = null;
+        this.focusCard = null;
+        this.tooltip = board.querySelector('[data-player-skills-tooltip]');
         this.editable = this.starterSelects.some((select) => !select.disabled);
     }
 
@@ -45,12 +48,43 @@ export class TacticalBoard {
             const card = event.target.closest('[data-squad-player]');
             if (card && this.board.contains(card)) this.handlePlayerClick(card);
         });
+        this.board.addEventListener('pointerover', (event) => {
+            const card = event.target.closest('[data-squad-player]');
+            if (!card || card.contains(event.relatedTarget)) return;
+            this.pointerCard = card;
+            this.refreshTooltip();
+        });
+        this.board.addEventListener('pointerout', (event) => {
+            const card = event.target.closest('[data-squad-player]');
+            if (!card || card.contains(event.relatedTarget)) return;
+            if (this.pointerCard === card) this.pointerCard = null;
+            this.refreshTooltip();
+        });
+        this.board.addEventListener('focusin', (event) => {
+            const card = event.target.closest('[data-squad-player]');
+            if (!card) return;
+            this.focusCard = card;
+            this.refreshTooltip();
+        });
+        this.board.addEventListener('focusout', (event) => {
+            const card = event.target.closest('[data-squad-player]');
+            if (!card || card.contains(event.relatedTarget)) return;
+            if (this.focusCard === card) this.focusCard = null;
+            this.refreshTooltip();
+        });
         document.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape' && this.selectedCard) {
-                this.clearSelection();
-                this.announce('Seleção cancelada.');
+            if (event.key === 'Escape') {
+                this.pointerCard = null;
+                this.focusCard = null;
+                this.hideTooltip();
+                if (this.selectedCard) {
+                    this.clearSelection();
+                    this.announce('Seleção cancelada.');
+                }
             }
         });
+        window.addEventListener('resize', () => this.refreshTooltip());
+        window.addEventListener('scroll', () => this.refreshTooltip(), true);
 
         this.syncInterface();
     }
@@ -217,6 +251,7 @@ export class TacticalBoard {
         const count = this.reserveSelects.filter((select) => select.value).length;
         const counter = this.board.querySelector('[data-bench-count]');
         if (counter) counter.textContent = `${count}/${this.reserveSelects.length}`;
+        this.refreshTooltip();
     }
 
     updatePlayer(slot, option) {
@@ -294,6 +329,57 @@ export class TacticalBoard {
 
     player(playerId) {
         return this.players[String(playerId)] || null;
+    }
+
+    refreshTooltip() {
+        const card = [this.focusCard, this.pointerCard].find((candidate) => candidate?.isConnected && candidate.dataset.playerId);
+        const player = card ? this.player(card.dataset.playerId) : null;
+        if (!this.tooltip || !card || !player) {
+            this.hideTooltip();
+
+            return;
+        }
+
+        if (this.tooltipCard && this.tooltipCard !== card) this.tooltipCard.removeAttribute('aria-describedby');
+        this.tooltipCard = card;
+        if (!this.tooltip.id) this.tooltip.id = 'squad-player-skills';
+        card.setAttribute('aria-describedby', this.tooltip.id);
+        this.tooltip.querySelector('[data-skills-player-name]').textContent = player.name;
+        this.tooltip.querySelector('[data-skills-player-meta]').textContent = `${player.positionLabel} · Condição ${player.fitness}%`;
+        const list = this.tooltip.querySelector('[data-player-skills]');
+        list.replaceChildren(...(player.attributes || []).map((attribute) => {
+            const item = document.createElement('div');
+            const label = document.createElement('dt');
+            const value = document.createElement('dd');
+            label.textContent = attribute.label;
+            value.textContent = String(attribute.value);
+            item.append(label, value);
+
+            return item;
+        }));
+        this.tooltip.hidden = false;
+        this.positionTooltip(card);
+    }
+
+    positionTooltip(card) {
+        const cardRect = card.getBoundingClientRect();
+        const tooltipRect = this.tooltip.getBoundingClientRect();
+        const margin = 12;
+        const centered = cardRect.left + cardRect.width / 2 - tooltipRect.width / 2;
+        const left = Math.min(window.innerWidth - tooltipRect.width - margin, Math.max(margin, centered));
+        const below = cardRect.bottom + 8;
+        const top = below + tooltipRect.height <= window.innerHeight - margin
+            ? below
+            : Math.max(margin, cardRect.top - tooltipRect.height - 8);
+        this.tooltip.style.left = `${Math.round(left)}px`;
+        this.tooltip.style.top = `${Math.round(top)}px`;
+    }
+
+    hideTooltip() {
+        if (!this.tooltip) return;
+        this.tooltip.hidden = true;
+        this.tooltipCard?.removeAttribute('aria-describedby');
+        this.tooltipCard = null;
     }
 
     clearSelection() {
